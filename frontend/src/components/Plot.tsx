@@ -8,8 +8,9 @@ interface Props {
 }
 
 const BASE_LAYOUT = {
-  margin: { l: 64, r: 16, t: 28, b: 48 },
-  font: { family: "Segoe UI, system-ui, sans-serif", size: 12, color: "#1f2937" },
+  margin: { l: 64, r: 18, t: 30, b: 50 },
+  font: { family: "Barlow, Segoe UI, system-ui, sans-serif", size: 13, color: "#1b2733" },
+  hoverlabel: { font: { family: "Barlow, Segoe UI, sans-serif", size: 13 }, bordercolor: "#b9c1c9" },
   paper_bgcolor: "#ffffff",
   plot_bgcolor: "#ffffff",
   legend: { orientation: "h", y: 1.12, x: 0 },

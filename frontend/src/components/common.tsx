@@ -17,7 +17,7 @@ export function Warnings({ items, compact = false }: { items: QualityWarning[]; 
       {items.map((w, i) => (
         <li key={i} className={w.severity} title={`Căn cứ: ${w.source}`}>
           {w.message}
-          {!compact && <span className="src"> — {w.source}</span>}
+          {!compact && <span className="src"> (căn cứ: {w.source})</span>}
         </li>
       ))}
     </ul>

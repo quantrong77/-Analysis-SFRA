@@ -49,21 +49,21 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
 
   return (
     <div className="view">
-      <div className="row between wrap">
+      <header className="view-head split">
         <div>
           <h1>
-            Phép đo {r.index ?? ""} · {r.label}
+            Phép đo {r.index !== null ? `${r.index}: ` : ""}
+            {r.label}
           </h1>
-          <div className="muted">
-            {r.group.label} · MBA {group.key} · Chế độ căn lưới: {r.aligned.modeLabel} ({r.aligned.freq.length} điểm,{" "}
-            {fmtHz(r.aligned.fLo)} – {fmtHz(r.aligned.fHi)})
-          </div>
+          <p className="lede">
+            {r.group.label}. Căn lưới {r.aligned.modeLabel}, {r.aligned.freq.length} điểm từ {fmtHz(r.aligned.fLo)} đến {fmtHz(r.aligned.fHi)}.
+          </p>
         </div>
-        <div className="row gap">
+        <div className="stepper">
           <button disabled={idx <= 0} onClick={() => onSelect(ok[idx - 1].row.key)}>
-            ← Trước
+            Phép đo trước
           </button>
-          <select value={rowKey} onChange={(e) => onSelect(e.target.value)}>
+          <select aria-label="Chọn phép đo" value={rowKey} onChange={(e) => onSelect(e.target.value)}>
             {ok.map((o) => (
               <option key={o.row.key} value={o.row.key}>
                 {o.row.index ?? ""} {o.row.label}
@@ -71,30 +71,44 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
             ))}
           </select>
           <button disabled={idx >= ok.length - 1} onClick={() => onSelect(ok[idx + 1].row.key)}>
-            Sau →
+            Phép đo sau
           </button>
         </div>
-      </div>
+      </header>
 
-      <section className="panel">
-        <div className="row gap wrap">
-          <LevelBadge c={r.classification} />
-          <span>
-            <strong>Hành động:</strong> {r.action} <InternalTag />
-          </span>
-        </div>
+      <section className={`statement lv-border-${r.classification.id}`}>
+        <p className="statement-text">
+          <LevelBadge c={r.classification} /> {r.action}. <InternalTag />
+        </p>
         {r.classification.note && <p className="note">{r.classification.note}</p>}
         <Warnings items={r.warnings} />
-        <div className="files muted small">
-          <div>
-            Baseline: <code>{r.baseline.sourceName}</code> · {fmtDateTime(r.baseline.testDate)} · {r.baseline.setting.redLead || "–"} →{" "}
-            {r.baseline.setting.blackLead || "–"} · {r.baseline.setting.measurementType}
-          </div>
-          <div>
-            Lần đo: <code>{r.test.sourceName}</code> · {fmtDateTime(r.test.testDate)} · {r.test.setting.redLead || "–"} →{" "}
-            {r.test.setting.blackLead || "–"} · {r.test.setting.measurementType}
-          </div>
-        </div>
+        <table className="grid small files-table">
+          <thead>
+            <tr>
+              <th>Đường</th>
+              <th>File</th>
+              <th>Thời điểm đo</th>
+              <th>Đầu đỏ → đầu đen</th>
+              <th>Loại phép đo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[["Baseline", r.baseline], ["Lần đo", r.test]].map(([role, t]) => {
+              const tr = t as Trace;
+              return (
+                <tr key={role as string}>
+                  <td>{role as string}</td>
+                  <td className="file-name">{tr.sourceName}</td>
+                  <td className="nowrap">{fmtDateTime(tr.testDate)}</td>
+                  <td className="nowrap">
+                    {tr.setting.redLead || "–"} → {tr.setting.blackLead || "–"}
+                  </td>
+                  <td>{tr.setting.measurementType || "–"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </section>
 
       <section className="panel">

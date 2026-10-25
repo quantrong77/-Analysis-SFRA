@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Packer } from "docx";
-import { LevelBadge } from "../components/common";
+
 import type { PairResult } from "../core/analysis";
 import type { TransformerGroup } from "../core/pairing";
 import { transformerConclusion } from "../core/rules";
@@ -18,7 +18,7 @@ interface Props {
   onReset: () => void;
 }
 
-export default function ReportView({ std, group, results, info, onInfo, onReset }: Props) {
+export default function ReportView({ std, results, info, onInfo, onReset }: Props) {
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ok = results.flatMap((r) => (r.result ? [r.result] : []));
@@ -53,20 +53,18 @@ export default function ReportView({ std, group, results, info, onInfo, onReset 
 
   return (
     <div className="view">
-      <div className="row between wrap">
+      <header className="view-head split">
         <div>
           <h1>Báo cáo Word</h1>
-          <div className="muted">
-            MBA {group.key} · {ok.length} phép đo · Baseline {info.baselineDate} → Lần đo {info.testDate}
-          </div>
+          <p className="lede">
+            Báo cáo {ok.length} phép đo, lần đo {info.testDate} so với baseline {info.baselineDate}. Kiểm tra thông tin chung trước khi xuất.
+          </p>
         </div>
-        <div className="row gap wrap">
-          {conclusion && <LevelBadge c={conclusion.worst} />}
-          <button className="primary" disabled={!conclusion || progress !== null} onClick={exportDocx}>
-            Xuất {name}
-          </button>
-        </div>
-      </div>
+        <button className="primary" disabled={!conclusion || progress !== null} onClick={exportDocx}>
+          Xuất báo cáo .docx
+        </button>
+      </header>
+      <p className="muted small">Tên file: {name}</p>
       {progress && <p className="muted">{progress}</p>}
       {error && <p className="err">Lỗi khi tạo báo cáo: {error}</p>}
 

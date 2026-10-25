@@ -11,13 +11,13 @@ export interface Figure {
 }
 
 const BAND_FILL: Record<string, string> = {
-  LF: "rgba(59,130,246,0.07)",
-  MF: "rgba(16,185,129,0.08)",
-  HF: "rgba(245,158,11,0.09)",
+  LF: "rgba(30,78,121,0.055)",
+  MF: "rgba(46,125,79,0.06)",
+  HF: "rgba(143,106,0,0.07)",
 };
-export const BASELINE_COLOR = "#1d4ed8";
-export const TEST_COLOR = "#dc2626";
-const EXTRA_COLORS = ["#7c3aed", "#059669", "#d97706", "#0891b2", "#db2777", "#4b5563"];
+export const BASELINE_COLOR = "#1e4e79";
+export const TEST_COLOR = "#c0392b";
+const EXTRA_COLORS = ["#5e4794", "#2e7d4f", "#8f6a00", "#0f7c8c", "#9c3d6f", "#59636e"];
 
 const sessionLabel = (t: Trace) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey(t.testDate));
@@ -34,14 +34,14 @@ function bandShapes(std: Standards) {
 
 function bandAnnotations(std: Standards) {
   return Object.entries(std.dlt911.bands).map(([k, b]) => ({
-    xref: "x", yref: "paper", x: (Math.log10(b.f_min) + Math.log10(b.f_max)) / 2, y: 1, yanchor: "bottom",
-    text: k, showarrow: false, font: { size: 11, color: "#6b7280" },
+    xref: "x", yref: "paper", x: (Math.log10(b.f_min) + Math.log10(b.f_max)) / 2, y: 0.995, yanchor: "top",
+    text: k, showarrow: false, font: { size: 12, color: "#6a7682" },
   }));
 }
 
 const xAxis = {
-  type: "log", title: { text: "Tần số (Hz)" }, exponentformat: "SI", gridcolor: "#e5e7eb",
-  minor: { showgrid: true, gridcolor: "#f3f4f6" },
+  type: "log", title: { text: "Tần số (Hz)" }, exponentformat: "SI", gridcolor: "#e3e7eb",
+  linecolor: "#b9c1c9", minor: { showgrid: true, gridcolor: "#f1f3f5" },
 };
 
 type TwoTraces = Pick<PairResult, "baseline" | "test">;
@@ -65,7 +65,7 @@ export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = 
   return {
     data: curves(r, extras, (t) => t.magDb, 1.6, names),
     layout: {
-      xaxis: xAxis, yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e5e7eb" },
+      xaxis: xAxis, yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb" },
       shapes: bandShapes(std), annotations: bandAnnotations(std),
     },
   };
@@ -75,7 +75,7 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
   return {
     data: curves(r, extras, (t) => t.phaseDeg, 1.4, names),
     layout: {
-      xaxis: xAxis, yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e5e7eb" },
+      xaxis: xAxis, yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e3e7eb" },
       shapes: bandShapes(std), annotations: bandAnnotations(std),
     },
   };
@@ -84,10 +84,10 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
 export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards): Figure {
   const a = r.aligned;
   return {
-    data: [{ x: a.freq, y: a.yDb.map((v, i) => v - a.xDb[i]), name: "ΔdB = Y − X", mode: "lines", line: { color: "#374151", width: 1.2 } }],
+    data: [{ x: a.freq, y: a.yDb.map((v, i) => v - a.xDb[i]), name: "ΔdB = Y − X", mode: "lines", line: { color: "#44515e", width: 1.2 } }],
     layout: {
       xaxis: xAxis,
-      yaxis: { title: { text: "ΔdB (lần đo − baseline)" }, zeroline: true, zerolinecolor: "#9ca3af", gridcolor: "#e5e7eb" },
+      yaxis: { title: { text: "ΔdB (lần đo − baseline)" }, zeroline: true, zerolinecolor: "#8b959e", gridcolor: "#e3e7eb" },
       shapes: bandShapes(std), annotations: bandAnnotations(std), showlegend: false,
     },
   };

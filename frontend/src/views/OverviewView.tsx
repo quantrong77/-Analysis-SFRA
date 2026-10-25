@@ -43,21 +43,26 @@ export default function OverviewView(p: Props) {
 
   return (
     <div className="view">
-      <div className="row between wrap">
-        <h1>Tổng quan</h1>
-        <button className="primary" onClick={p.onImport}>
-          Nhập dữ liệu
-        </button>
-      </div>
+      <header className="view-head split">
+        <div>
+          <h1>Tổng quan</h1>
+          {p.groups.length > 0 && <p className="lede">Các máy biến áp đã nạp, kỳ đo gần nhất và đánh giá theo kỳ đang chọn.</p>}
+        </div>
+        {p.groups.length > 0 && (
+          <button className="primary" onClick={p.onImport}>
+            Nhập dữ liệu
+          </button>
+        )}
+      </header>
 
       {p.groups.length === 0 ? (
         <section className="panel empty">
-          <h2>Chưa có dữ liệu</h2>
+          <h2>Chưa có file đo nào</h2>
           <p>
-            Nhập các file đo SFRA của một hoặc nhiều MBA (ít nhất hai kỳ đo: baseline và lần đo hiện tại). Ứng dụng ghép cặp
-            theo STT + ký hiệu phép đo, tính hệ số tương quan Rxy theo DL/T 911-2004 Phụ lục A và phân loại theo Bảng A.1.
+            Nhập file đo SFRA của ít nhất hai kỳ cho cùng một máy biến áp: baseline (kỳ đo cơ sở) và lần đo cần đánh giá. Ứng dụng tự ghép cặp theo
+            số thứ tự và ký hiệu phép đo, tính Rxy theo DL/T 911-2004 Phụ lục A và xếp mức theo Bảng A.1.
           </p>
-          <p className="muted">File đo được lưu trong trình duyệt của máy này, không gửi lên máy chủ.</p>
+          <p className="muted">File chỉ lưu trong trình duyệt của máy này, không gửi lên máy chủ.</p>
           <button className="primary" onClick={p.onImport}>
             Nhập dữ liệu
           </button>
@@ -85,7 +90,7 @@ export default function OverviewView(p: Props) {
                     <td>
                       <strong>{g.key}</strong>
                     </td>
-                    <td>{g.locations.join(" · ")}</td>
+                    <td>{g.locations.join(", ")}</td>
                     <td>{g.sessions.map(sessionLabel).join(", ")}</td>
                     <td>{sessionLabel(g.sessions[g.sessions.length - 1])}</td>
                     <td className="num">{p.traceCount[g.key] ?? 0}</td>

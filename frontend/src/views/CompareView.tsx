@@ -17,7 +17,7 @@ interface Props {
   mode: GridMode;
 }
 
-const traceName = (t: Trace) => `${t.transformerKey} · ${sessionLabel(dayKey(t.testDate))} · ${t.index !== null ? `${t.index} ` : ""}${t.label}`;
+const traceName = (t: Trace) => `${t.index !== null ? `${t.index} ` : ""}${t.label}, MBA ${t.transformerKey}, ${sessionLabel(dayKey(t.testDate))}`;
 const phaseName = (t: Trace) => phasePattern(t.label)?.phase ?? t.label;
 
 function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards; names: CurveNames }) {
@@ -39,10 +39,10 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
       </p>
       <div className="files muted small">
         <div>
-          Đường 1 (xanh): <code>{c.a.sourceName}</code> · {traceName(c.a)}
+          Đường 1 (xanh liền): {traceName(c.a)}. File <span className="file-name">{c.a.sourceName}</span>
         </div>
         <div>
-          Đường 2 (đỏ đứt): <code>{c.b.sourceName}</code> · {traceName(c.b)}
+          Đường 2 (đỏ đứt): {traceName(c.b)}. File <span className="file-name">{c.b.sourceName}</span>
         </div>
         <div>Chế độ căn lưới: {c.aligned.modeLabel}</div>
       </div>
@@ -105,15 +105,17 @@ export default function CompareView({ std, group, traces, mode }: Props) {
 
   return (
     <div className="view">
-      <h1>So sánh tham khảo</h1>
-      <p className="muted">
-        Đặc tả mục 6.7: khi không có baseline, so sánh giữa các pha cùng kỳ đo hoặc với MBA cùng kiểu. Chỉ hiển thị chỉ số, không
-        phân loại theo DL/T 911 Bảng A.1.
-      </p>
+      <header className="view-head">
+        <h1>So sánh tham khảo</h1>
+        <p className="lede">
+          Khi chưa có baseline, so sánh giữa các pha trong cùng kỳ đo hoặc với máy biến áp cùng kiểu. Chỉ hiển thị chỉ số, không xếp mức
+          theo DL/T 911 Bảng A.1.
+        </p>
+      </header>
 
       <section className="panel">
         <div className="row between wrap">
-          <h2>Giữa các pha – MBA {group.key}</h2>
+          <h2>Giữa các pha</h2>
           <label>
             Kỳ đo{" "}
             <select value={session} onChange={(e) => { setSession(e.target.value); setSel(null); }}>
@@ -194,7 +196,7 @@ export default function CompareView({ std, group, traces, mode }: Props) {
               <option value="">— chọn —</option>
               {sorted.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {traceName(t)} — {t.sourceName}
+                  {traceName(t)} ({t.sourceName})
                 </option>
               ))}
             </select>
@@ -205,7 +207,7 @@ export default function CompareView({ std, group, traces, mode }: Props) {
               <option value="">— chọn —</option>
               {sorted.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {traceName(t)} — {t.sourceName}
+                  {traceName(t)} ({t.sourceName})
                 </option>
               ))}
             </select>

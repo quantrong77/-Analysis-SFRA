@@ -10,19 +10,17 @@ interface Props {
   std: Standards;
   group: TransformerGroup;
   results: RowResult[];
-  mode: GridMode;
-  onMode: (m: GridMode) => void;
   onOpen: (rowKey: string) => void;
 }
 
 export const MODE_OPTIONS: { value: GridMode; label: string }[] = [
-  { value: "auto", label: "Tự động (A nếu cùng lưới, ngược lại B)" },
-  { value: "A", label: "A – Nguyên bản" },
-  { value: "B", label: "B – Theo lưới baseline" },
-  { value: "C", label: "C – Lưới log 200 điểm/decade" },
+  { value: "auto", label: "Tự động (A hoặc B)" },
+  { value: "A", label: "A: nguyên bản" },
+  { value: "B", label: "B: theo lưới baseline" },
+  { value: "C", label: "C: lưới log 200 điểm/decade" },
 ];
 
-export default function ResultsView({ std, group, results, mode, onMode, onOpen }: Props) {
+export default function ResultsView({ std, group, results, onOpen }: Props) {
   const [filter, setFilter] = useState<string>("all");
   const ok = results.filter((r) => r.result).map((r) => r.result!);
   const conclusion = useMemo(() => (ok.length ? transformerConclusion(ok, std) : null), [ok, std]);
@@ -36,36 +34,20 @@ export default function ResultsView({ std, group, results, mode, onMode, onOpen 
 
   return (
     <div className="view">
-      <div className="row between wrap">
-        <div>
-          <h1>Kết quả kỳ đo</h1>
-          <div className="muted">
-            MBA {group.key} · {group.locations.join(" · ")} · Baseline {sessionLabel(group.baselineSession)} → Lần đo{" "}
-            {sessionLabel(group.testSession)}
-          </div>
-        </div>
-        <label>
-          Chế độ căn lưới{" "}
-          <select value={mode} onChange={(e) => onMode(e.target.value as GridMode)}>
-            {MODE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <header className="view-head">
+        <h1>Kết quả kỳ đo</h1>
+        <p className="lede">
+          Lần đo {sessionLabel(group.testSession)} so với baseline {sessionLabel(group.baselineSession)}, hệ số tương quan Rxy theo DL/T
+          911-2004 Phụ lục A. Chọn một phép đo để xem giản đồ và bảng tính.
+        </p>
+      </header>
 
       {conclusion && (
-        <section className={`panel conclusion lv-border-${conclusion.worst.id}`}>
-          <div className="row gap wrap">
-            <span className="muted">Đánh giá chung (mức nặng nhất):</span>
-            <LevelBadge c={conclusion.worst} />
-          </div>
-          <p className="conclusion-text">{conclusion.text}</p>
+        <section className={`statement lv-border-${conclusion.worst.id}`}>
+          <p className="statement-text">{conclusion.text}</p>
           <p className="muted small">
-            Căn cứ: {std.dlt911.classification.source}. Bộ quy tắc {std.ruleset.id} phiên bản {std.versionTag}. Hành
-            động gợi ý: <InternalTag />.
+            Căn cứ: {std.dlt911.classification.source}. Bộ quy tắc {std.ruleset.id} phiên bản {std.versionTag}. Hành động gợi ý là{" "}
+            <InternalTag />.
           </p>
         </section>
       )}

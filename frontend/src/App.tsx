@@ -20,7 +20,9 @@ import CompareView from "./views/CompareView";
 import { defaultInfo, type ReportInfo } from "./report/info";
 import { makeBackup, mergeWorkspace, readBackup } from "./storage/backup";
 import { emptyWorkspace, requestPersistence, SfraStore, type StoredFile, type WorkspaceState } from "./storage/db";
-import { computeResults, regroup, type LoadError } from "./workspace";
+import { computeResults, regroup, setSessions, type LoadError } from "./workspace";
+import Nameplate from "./components/Nameplate";
+import { BrandMark, ICONS } from "./components/Icons";
 
 type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "standards";
 
@@ -129,6 +131,11 @@ export default function App() {
       setReady(true);
     })();
   }, [parseStored]);
+
+  // a new screen or measurement starts at the top
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [view, rowKey]);
 
   // persist workspace edits
   useEffect(() => {
@@ -310,38 +317,65 @@ export default function App() {
   const info = group ? { ...defaultInfo(group, traces, std), ...ws.infoEdits[group.key] } : null;
   const setMode = (m: GridMode) => setWs((w) => ({ ...w, mode: m }));
 
+  const plateViews: View[] = ["results", "detail", "trend", "compare", "report"];
+  const showPlate = Boolean(group && info && plateViews.includes(view));
+
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className="shell">
+      <aside className="rail">
         <div className="brand">
-          <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden>
-            <rect width="32" height="32" rx="6" fill="#1d4ed8" />
-            <path d="M4 22 Q9 6 13 18 T22 12 T28 20" stroke="white" strokeWidth="2.5" fill="none" />
-          </svg>
+          <BrandMark />
           <div>
             <div className="brand-name">SFRA Analyzer</div>
-            <div className="brand-sub">DL/T 911-2004 · IEC 60076-18</div>
+            <div className="brand-sub">Biến dạng cuộn dây MBA</div>
           </div>
         </div>
-        <nav>
+        <nav className="nav-list" aria-label="Chức năng">
           {NAV.map((n) => (
-            <button key={n.id} className={view === n.id ? "nav on" : "nav"} disabled={disabled(n.id)} onClick={() => setView(n.id)}>
-              {n.label}
+            <button
+              key={n.id}
+              className={view === n.id ? "nav-item on" : "nav-item"}
+              aria-current={view === n.id ? "page" : undefined}
+              disabled={disabled(n.id)}
+              onClick={() => setView(n.id)}
+            >
+              {ICONS[n.id]}
+              <span>{n.label}</span>
             </button>
           ))}
         </nav>
-        {groups.length > 1 && (needsResults(view) || view === "trend" || view === "compare") && (
-          <select className="tx-select" value={group?.key} onChange={(e) => setActiveGroup(e.target.value)}>
-            {groups.map((g) => (
-              <option key={g.key} value={g.key}>
-                MBA {g.key}
-              </option>
-            ))}
-          </select>
+        {groups.length > 0 && (
+          <label className="rail-tx">
+            <span>Máy biến áp</span>
+            <select value={group?.key} onChange={(e) => setActiveGroup(e.target.value)}>
+              {groups.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.key}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-      </header>
+        <div className="rail-foot">
+          <span className={storage.ok ? "dot ok" : "dot off"} aria-hidden />
+          {storage.ok ? `${storage.fileCount} file đo lưu trong trình duyệt` : "Chưa lưu được vào trình duyệt"}
+          <div>Bộ quy tắc {std.versionTag}</div>
+        </div>
+      </aside>
 
-      <main>
+      <main className="main">
+        {showPlate && group && info && (
+          <Nameplate
+            group={group}
+            name={info.name}
+            manufacturer={info.manufacturer}
+            year={info.year}
+            worst={worst[group.key] ?? null}
+            mode={mode}
+            onMode={setMode}
+            onSessions={(b, t) => setGroups((gs) => gs.map((g) => (g.key === group.key ? setSessions(g, traces, b, t) : g)))}
+          />
+        )}
         {view === "overview" && (
           <OverviewView
             std={std}
@@ -400,8 +434,6 @@ export default function App() {
             std={std}
             group={group}
             results={results}
-            mode={mode}
-            onMode={setMode}
             onOpen={(k) => {
               setRowKey(k);
               setView("detail");
@@ -412,7 +444,7 @@ export default function App() {
           <DetailView std={std} group={group} results={results} rowKey={currentRow} traces={traces} onSelect={setRowKey} />
         )}
         {view === "trend" && group && (
-          <TrendView std={std} group={group} traces={traces} mode={mode} onMode={setMode} />
+          <TrendView std={std} group={group} traces={traces} mode={mode} />
         )}
         {view === "compare" && group && <CompareView std={std} group={group} traces={traces} mode={mode} />}
         {view === "report" && group && info && (
@@ -449,10 +481,6 @@ export default function App() {
           />
         )}
       </main>
-
-      <footer className="foot">
-        Tính toán chạy hoàn toàn trong trình duyệt; dữ liệu đo không rời khỏi máy. Bộ quy tắc {std.versionTag}.
-      </footer>
     </div>
   );
 }

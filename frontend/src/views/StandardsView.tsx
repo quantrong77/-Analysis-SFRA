@@ -102,7 +102,7 @@ export default function StandardsView({ std, profiles, onDeleteProfile, onSaveRu
           </tbody>
         </table>
         <p className="small">
-          Hành động gợi ý: <InternalTag /> — {std.actions.source}
+          Hành động gợi ý: <InternalTag /> ({std.actions.source})
         </p>
       </section>
 

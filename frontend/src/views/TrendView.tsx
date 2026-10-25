@@ -8,23 +8,21 @@ import type { Standards } from "../core/standards";
 import { computeTrend, type TrendSeries } from "../core/trend";
 import type { Trace } from "../core/types";
 import { sessionLabel } from "../workspace";
-import { MODE_OPTIONS } from "./ResultsView";
 
 interface Props {
   std: Standards;
   group: TransformerGroup;
   traces: Trace[];
   mode: GridMode;
-  onMode: (m: GridMode) => void;
 }
 
-const BAND_COLORS: Record<string, string> = { LF: "#1d4ed8", MF: "#059669", HF: "#d97706" };
+const BAND_COLORS: Record<string, string> = { LF: "#1e4e79", MF: "#2e7d4f", HF: "#8f6a00" };
 
 function TrendBadge({ s }: { s: TrendSeries }) {
   return <span className={`badge trend-${s.status.id}`}>{s.status.label}</span>;
 }
 
-export default function TrendView({ std, group, traces, mode, onMode }: Props) {
+export default function TrendView({ std, group, traces, mode }: Props) {
   const tr = useMemo(
     () => computeTrend(traces.filter((t) => t.transformerKey === group.key), group.baselineSession, std, mode),
     [traces, group.key, group.baselineSession, std, mode],
@@ -53,8 +51,8 @@ export default function TrendView({ std, group, traces, mode, onMode }: Props) {
     return {
       data,
       layout: {
-        xaxis: { type: "date", title: { text: "Kỳ đo" }, tickformat: "%d/%m/%Y", gridcolor: "#e5e7eb" },
-        yaxis: { title: { text: "Rxy so với baseline" }, rangemode: "tozero", gridcolor: "#e5e7eb" },
+        xaxis: { type: "date", title: { text: "Kỳ đo" }, tickformat: "%d/%m/%Y", gridcolor: "#e3e7eb" },
+        yaxis: { title: { text: "Rxy so với baseline" }, rangemode: "tozero", gridcolor: "#e3e7eb" },
         shapes, annotations, hovermode: "x unified",
       },
     };
@@ -68,25 +66,13 @@ export default function TrendView({ std, group, traces, mode, onMode }: Props) {
 
   return (
     <div className="view">
-      <div className="row between wrap">
-        <div>
-          <h1>Xu hướng</h1>
-          <div className="muted">
-            MBA {group.key} · {tr.sessions.length} kỳ đo · Baseline {sessionLabel(tr.baselineSession)} · Chế độ căn lưới dùng chung:{" "}
-            {tr.mode}
-          </div>
-        </div>
-        <label>
-          Chế độ căn lưới{" "}
-          <select value={mode} onChange={(e) => onMode(e.target.value as GridMode)}>
-            {MODE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <header className="view-head">
+        <h1>Xu hướng</h1>
+        <p className="lede">
+          {tr.sessions.length} kỳ đo. Rxy của mỗi kỳ tính so với baseline {sessionLabel(tr.baselineSession)}, mọi kỳ dùng chung chế
+          độ căn lưới {tr.mode}.
+        </p>
+      </header>
 
       <section className="panel">
         <p>

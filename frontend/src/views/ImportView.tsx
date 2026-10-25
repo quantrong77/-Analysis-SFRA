@@ -126,10 +126,10 @@ export default function ImportView(p: Props) {
           <section key={g.key} className="panel">
             <div className="row between wrap">
               <div>
-                <h2>MBA số chế tạo {g.key}</h2>
-                <div className="muted">
-                  {g.locations.join(" · ") || "Chưa có vị trí"} · {list.length} đường đo · {g.sessions.length} kỳ đo
-                </div>
+                <h2>Máy biến áp {g.key}</h2>
+                <p className="muted">
+                  {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
+                </p>
               </div>
               <div className="row gap wrap">
                 <label>
@@ -196,7 +196,7 @@ export default function ImportView(p: Props) {
                           const t = byId.get(id)!;
                           return (
                             <option key={id} value={id}>
-                              {sessionLabel(dayKey(t.testDate))} · {t.sourceName}
+                              {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
                             </option>
                           );
                         })}
