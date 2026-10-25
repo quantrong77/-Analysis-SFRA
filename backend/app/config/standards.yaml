@@ -1,0 +1,333 @@
+# =============================================================================
+# SFRA Analyzer - Bộ quy tắc đánh giá (một nguồn sự thật cho mọi ngưỡng)
+# Mỗi ngưỡng / dải tần / câu kết luận phải có trường `source`.
+# Ngưỡng không có trong tiêu chuẩn tham chiếu được gắn `internal: true`
+# và hiển thị nhãn "Ngưỡng nội bộ (cấu hình được)".
+# Mọi kết quả tính toán lưu kèm `ruleset.version` và SHA-256 của file này.
+# =============================================================================
+
+ruleset:
+  id: SFRA-DLT911-VN
+  version: "1.0.0"
+  date: "2026-10-25"
+  description: "Bộ quy tắc đánh giá SFRA theo DL/T 911-2004, tham chiếu IEC 60076-18:2012, IEEE C57.149-2012, CIGRE TB 342/812/445"
+
+internal_label: "Ngưỡng nội bộ (cấu hình được)"
+
+# -----------------------------------------------------------------------------
+# Căn lưới tần số (đặc tả mục 5)
+# -----------------------------------------------------------------------------
+resample:
+  source: "Đặc tả SFRA_WebApp_DacTa.md, mục 5; CIGRE TB 812, mục 7.2.5 và Bảng 7.3"
+  default_mode: auto            # auto = A nếu lưới trùng, ngược lại B
+  grid_match_rtol: 1.0e-6       # sai lệch tương đối tối đa từng điểm để coi là cùng lưới (chế độ A)
+  log_grid_points_per_decade: 200
+  log_grid_source: "IEC 60076-18:2012, mục 4.5 (trên 100 Hz tối thiểu 200 điểm/decade)"
+  modes:
+    A: "Nguyên bản (hai file cùng lưới tần số)"
+    B: "Theo lưới baseline (nội suy lần đo lên tần số baseline, vùng tần số chung)"
+    C: "Lưới log chuẩn 200 điểm/decade (nội suy cả hai đường)"
+  interpolation: "Tuyến tính theo log10(f), biên độ theo dB, không ngoại suy; góc pha unwrap trước khi nội suy, đưa về (-180°, 180°]"
+
+# -----------------------------------------------------------------------------
+# DL/T 911-2004, Phụ lục A: hệ số tương quan Rxy (chỉ số chính để kết luận)
+# -----------------------------------------------------------------------------
+dlt911:
+  source: "DL/T 911-2004, Phụ lục A, A.1–A.4"
+  rxy_max: 10.0                 # Rxy = 10 khi (1 - LRxy) < 1E-10
+  rxy_eps: 1.0e-10
+  bands:
+    LF:
+      label: "Tần số thấp (LF)"
+      f_min: 1000.0
+      f_max: 100000.0
+      include_min: true
+      include_max: true
+      threshold: 2.0
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (1 kHz ~ 100 kHz); cận biên theo Excel v6"
+    MF:
+      label: "Tần số trung bình (MF)"
+      f_min: 100000.0
+      f_max: 600000.0
+      include_min: false
+      include_max: true
+      threshold: 1.0
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (100 kHz ~ 600 kHz); cận biên theo Excel v6"
+    HF:
+      label: "Tần số cao (HF)"
+      f_min: 600000.0
+      f_max: 1000000.0
+      include_min: false
+      include_max: true
+      threshold: 0.6
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (600 kHz ~ 1000 kHz); cận biên theo Excel v6"
+
+  # Xét theo thứ tự từ nặng đến nhẹ, gặp điều kiện đầu tiên thì dừng.
+  # `any`: danh sách mệnh đề, đúng khi một mệnh đề đúng; mỗi mệnh đề đúng khi mọi điều kiện đúng.
+  # Toán tử: lt (<), le (<=), gt (>), ge (>=).
+  classification:
+    source: "DL/T 911-2004, Phụ lục A, Bảng A.1 (chỉ để tham khảo)"
+    levels:
+      - id: severe
+        label: "Biến dạng nghiêm trọng"
+        label_en: "Severe Deformation"
+        rank: 4
+        in_standard: true
+        any:
+          - {RLF: {lt: 0.6}}
+      - id: obvious
+        label: "Biến dạng rõ rệt"
+        label_en: "Obvious Deformation"
+        rank: 3
+        in_standard: true
+        any:
+          - {RLF: {ge: 0.6, lt: 1.0}}
+          - {RMF: {lt: 0.6}}
+      - id: slight
+        label: "Biến dạng nhẹ"
+        label_en: "Slight Deformation"
+        rank: 2
+        in_standard: true
+        any:
+          - {RLF: {ge: 1.0, lt: 2.0}}
+          - {RMF: {ge: 0.6, lt: 1.0}}
+      - id: normal
+        label: "Bình thường"
+        label_en: "Normal Winding"
+        rank: 0
+        in_standard: true
+        any:
+          - {RLF: {ge: 2.0}, RMF: {ge: 1.0}, RHF: {ge: 0.6}}
+      - id: review
+        label: "Cần xem xét (không thuộc Bảng A.1)"
+        label_en: "Review required"
+        rank: 1
+        in_standard: false
+        source: "Đặc tả SFRA_WebApp_DacTa.md, mục 6.1, mức 5 (không có trong DL/T 911-2004)"
+        note: "RHF dưới ngưỡng; dải HF chịu ảnh hưởng lớn của dây đo và tiếp địa (IEC 60076-18, Phụ lục B), kiểm tra lại cách đấu nối trước khi kết luận"
+        any:
+          - {RLF: {ge: 2.0}, RMF: {ge: 1.0}, RHF: {lt: 0.6}}
+    insufficient:
+      id: insufficient
+      label: "Không đủ dữ liệu để phân loại"
+      label_en: "Insufficient data"
+      rank: 1
+      in_standard: false
+      source: "Đặc tả SFRA_WebApp_DacTa.md, mục 4.3 (dải tần không phủ)"
+      note: "Thiếu điểm đo trong một hoặc nhiều dải LF/MF/HF, không tính được Rxy"
+
+# Hành động gợi ý theo mức độ (đặc tả mục 6.1)
+actions:
+  internal: true
+  source: "Ngưỡng nội bộ (cấu hình được), lấy từ Excel v6 (SFRA_Analyzer_v6_T2_BL.xlsm)"
+  by_level:
+    normal: "Tiếp tục theo dõi định kỳ"
+    slight: "Tăng tần suất đo, đối chiếu DGA và các thí nghiệm khác"
+    obvious: "Kiểm tra chi tiết, đối chiếu điện dung, tổng trở ngắn mạch, DGA"
+    severe: "Kiểm tra khẩn, xem xét đưa ra khỏi vận hành"
+    review: "Kiểm tra lại cách đấu nối trước khi kết luận"
+    insufficient: "Bổ sung phép đo phủ đủ dải 1 kHz – 1 MHz"
+
+# -----------------------------------------------------------------------------
+# Phân vùng IEC 60076-18 (đặc tả mục 6.2) - chỉ để hiển thị, không có ngưỡng
+# -----------------------------------------------------------------------------
+iec_zones:
+  source: "IEC 60076-18:2012, Phụ lục B (ví dụ minh họa, không bắt buộc)"
+  note: "IEC 60076-18 không quy định ngưỡng định lượng"
+  zones:
+    core:      {label: "Lõi thép",             f_min: 0.0,       f_max: 2000.0}
+    interaction: {label: "Tương tác cuộn dây", f_min: 2000.0,    f_max: 20000.0}
+    winding:   {label: "Cấu trúc cuộn dây",    f_min: 20000.0,   f_max: 1000000.0}
+    leads:     {label: "Ảnh hưởng dây đo",     f_min: 1000000.0, f_max: .inf}
+
+# -----------------------------------------------------------------------------
+# Kiểm tra chất lượng dữ liệu khi nhập (đặc tả mục 4.3) - cảnh báo, không chặn
+# -----------------------------------------------------------------------------
+quality:
+  fmax:
+    um_threshold_kv: 72.5
+    min_fmax_hz_um_above: 1000000.0   # Um > 72,5 kV
+    min_fmax_hz_um_below: 2000000.0   # Um <= 72,5 kV
+    source: "IEC 60076-18:2012, mục 4.5"
+  density:
+    low_freq_limit_hz: 100.0
+    max_step_below_limit_hz: 10.0
+    min_points_per_decade: 200
+    source: "IEC 60076-18:2012, mục 4.5"
+  dlt911_step:
+    f_min: 1000.0
+    f_max: 1000000.0
+    max_step_hz: 2000.0
+    severity: note
+    source: "DL/T 911-2004, mục 5.4"
+    note: "Dữ liệu quét dạng log có bước lớn ở dải HF; DL/T 911 quy định quét tuyến tính bước < 2 kHz"
+  coverage:
+    f_min: 1000.0
+    f_max: 1000000.0
+    source: "DL/T 911-2004, mục 5.3 và Phụ lục A, Bảng A.1 (1 kHz ~ 1 MHz)"
+  pair:
+    source: "IEC 60076-18:2012, mục 5 (cấu hình đo phải giống nhau giữa các lần đo); CIGRE TB 342"
+    compare_fields:
+      measurement_type: "Loại phép đo"
+      shorted_terminal: "Đầu nối tắt"
+      grounded_terminal: "Đầu nối đất"
+      ltc_position: "Nấc OLTC"
+      detc_position: "Nấc DETC"
+    # Ký hiệu đầu cực kiểu H/X (file 2019) và kiểu A/a/N (file 2026) chỉ cùng một đầu cực.
+    # Phân biệt chữ hoa/thường (A là cao áp, a là hạ áp). "HOXO" là cách gõ chữ O thay số 0 trong file 2019.
+    terminal_aliases:
+      internal: true
+      source: "Ngưỡng nội bộ (cấu hình được) - quy ước ký hiệu đầu cực, kiểm tra trên dữ liệu mẫu của đơn vị"
+      map:
+        H1: A
+        H2: B
+        H3: C
+        X1: a
+        X2: b
+        X3: c
+        H0: N
+        X0: N
+        H0X0: N
+        HOXO: N
+    # Các giá trị văn bản coi là như nhau khi so cấu hình (so sánh không phân biệt hoa/thường).
+    value_equivalents:
+      internal: true
+      source: "Ngưỡng nội bộ (cấu hình được) - 'make note' là chữ mặc định của phần mềm máy đo"
+      groups:
+        - ["as found", "as found - make note"]
+
+# FSI (đặc tả mục 6.5): đã bỏ theo quyết định của người dùng ngày 25/10/2026
+# (công thức tự quy định, không có trong tiêu chuẩn, không cần dùng).
+
+# Xu hướng nhiều kỳ đo (đặc tả mục 6.6). Rxy luôn tính so với baseline, mọi kỳ cùng một chế độ căn lưới.
+# Quy tắc theo FSI đã bỏ cùng FSI. Mức biến dạng của từng kỳ vẫn theo DL/T 911 Bảng A.1.
+trend:
+  internal: true
+  source: "Ngưỡng nội bộ (cấu hình được), từ dacta/Huong_dan_SFRA_Analyzer.md"
+  min_sessions: 3               # tổng số kỳ đo, kể cả baseline
+  rmf_rhf_drop_ratio: 0.20      # giảm hơn 20 % so với kỳ đầu tiên có Rxy
+  bands_checked: [MF, HF]
+  statuses:
+    insufficient: {label: "Chưa đủ dữ liệu xu hướng", rank: 0}
+    stable: {label: "Không suy giảm vượt ngưỡng nội bộ", rank: 1}
+    warning: {label: "Cảnh báo", rank: 2}
+  templates:
+    insufficient: "Mới có {n} kỳ đo (cần ít nhất {min} kỳ, kể cả baseline)."
+    drop: "R{band} giảm {pct} % so với kỳ {first} ({from} → {to}, kỳ {date})."
+    stable: "RMF, RHF không giảm quá {pct} % so với kỳ {first}."
+
+# Phân nhóm phép đo để lọc bảng kết quả (đặc tả mục 7, màn hình 3).
+# So khớp biểu thức chính quy với ký hiệu phép đo, phân biệt hoa/thường; nhóm đầu tiên khớp được chọn.
+measurement_groups:
+  internal: true
+  source: "Ngưỡng nội bộ (cấu hình được) - phân nhóm theo ký hiệu phép đo"
+  groups:
+    - {id: inter, label: "Xuyên cuộn", pattern: "^[A-C]-[a-c]$"}
+    - {id: hv, label: "Cao áp", pattern: "^[A-C]-([A-C]|N|n)$"}
+    - {id: lv, label: "Hạ áp", pattern: "^[a-c]-([a-c]|N|n)$"}
+    - {id: tv, label: "Đệ tam", pattern: '^Y\d-Y\d$'}
+  other: {id: other, label: "Khác"}
+
+# Định dạng file của hãng máy đo (đặc tả mục 4, giai đoạn 5)
+vendors:
+  frax:
+    label: "Megger FRAX (.frax)"
+    # Mỗi điểm <Data>: f, c1..c6 = ba cặp biên độ/góc pha (c1∠c4) = (c2∠c5) / (c3∠c6), góc pha theo radian.
+    # c3∠c6 là hàm truyền H của phép đo.
+    magnitude_db: "20*log10(c3)"
+    phase_deg: "c6 * 180/pi"
+    magnitude_confirmed: true
+    magnitude_check: "Đã đối chiếu với phần mềm FRAX tại một điểm đo của file mẫu (25/10/2026); cách đọc cũ 20·log10(c3/c2) sai và đã bỏ."
+    phase_confirmed: true
+    phase_check: "Đã đối chiếu với phần mềm FRAX tại một điểm đo của file mẫu (25/10/2026)."
+    source: "File .frax mẫu của đơn vị, đối chiếu biên độ và góc pha với phần mềm FRAX; chưa có tài liệu hãng"
+  doble_sfra:
+    label: "Doble SFRA (.sfra, XML)"
+    point_format: "<d>f,biên độ dB,góc pha độ</d>"
+    source: "Cấu trúc file .sfra trong data/csv (cùng dữ liệu với file CSV FRA v2.0)"
+
+  generic_csv:
+    label: "CSV khác (tự nhận dạng / hồ sơ ánh xạ cột)"
+    source: "Đặc tả SFRA_WebApp_DacTa.md, mục 4.2"
+    keywords:
+      freq: ["freq", "frequency", "hz", "tần số", "tan so", "f("]
+      mag: ["db", "mag", "magnitude", "amplitude", "gain", "biên độ", "bien do", "rms"]
+      phase: ["phase", "deg", "°", "pha", "angle"]
+      linear: ["ratio", "v/v", "lin", "tỷ số", "ty so"]
+    # dB = 20·log10(|H|) khi biên độ là tỷ số tuyến tính. Không ghi đơn vị mà mọi giá trị dương thì
+    # đoán là tuyến tính nhưng vẫn coi là chưa chắc chắn (hiện màn hình ánh xạ cột).
+    linear_if_all_positive: true
+
+# Phân tích đỉnh cộng hưởng (đặc tả mục 6.4)
+peaks:
+  method: "scipy.signal.find_peaks trên đường biên độ dB, tham số prominence; hố (notch) tìm trên −dB"
+  prominence_db: 1.5
+  prominence_source: "Đặc tả SFRA_WebApp_DacTa.md, mục 6.4 (mặc định 1,5 dB, cấu hình được)"
+  match_window_ratio: 0.10      # ghép đỉnh baseline với đỉnh lần đo gần nhất theo log10(f) trong ±10 %
+  shift_thresholds_percent:
+    internal: true
+    source: "Ngưỡng nội bộ (cấu hình được), từ Excel v6 - không tìm thấy trong các tiêu chuẩn tham chiếu"
+    warning: 5.0
+    alarm: 15.0
+  labels:
+    ok: "Dịch < ngưỡng"
+    warning: "Dịch ≥ {warning} %"
+    alarm: "Dịch ≥ {alarm} %"
+    lost: "Mất (không còn ở lần đo)"
+    new: "Mới xuất hiện"
+  qualitative_source: "IEEE C57.149-2012 (xuất hiện/mất đỉnh, dịch tần đỉnh là chỉ báo quan trọng); DL/T 911-2004, mục 7.4"
+
+# Chỉ số CIGRE TB 812 (đặc tả mục 6.3) - chỉ hiển thị giá trị, KHÔNG có ngưỡng kết luận
+tb812:
+  source: "CIGRE TB 812 (2020), mục 6.2.3, Bảng 6.2, phương trình 6.3–6.19"
+  note: "TB 812 không đưa ngưỡng thống nhất; chỉ số chỉ để tham khảo. Tính trên biên độ dB."
+  data_size_note: "CIGRE TB 812, mục 7.2.5, Bảng 7.3: CC, CCF, LCC, SDA, SE ít phụ thuộc số điểm"
+  indices:
+    - {id: CC, name: "Correlation Coefficient", equation: "6.14", ideal: 1}
+    - {id: CCF, name: "Cross Correlation Factor", equation: "6.13", ideal: 1}
+    - {id: LCC, name: "Lin's Concordance Coefficient", equation: "6.19", ideal: 1}
+    - {id: ASLE, name: "Absolute Sum of Logarithmic Error", equation: "6.7", ideal: 0, unit: "dB",
+       note: "Dữ liệu đã ở dB nên 20·log10 Y(i) − 20·log10 X(i) = Y_dB(i) − X_dB(i)"}
+    - {id: SD, name: "Standard Deviation", equation: "6.3", ideal: 0, unit: "dB"}
+    - {id: CSD, name: "Comparative Standard Deviation", equation: "6.18", ideal: 0, unit: "dB"}
+    - {id: MD, name: "Maximum of Difference", equation: "6.12", ideal: 0, unit: "dB", note: "MD = max(Y(i) − X(i)), có dấu"}
+    - {id: MAXABS, name: "max|Y − X|", equation: "", ideal: 0, unit: "dB", note: "Bổ sung, không thuộc TB 812"}
+
+# So sánh tham khảo (đặc tả mục 6.7) - giữa các pha cùng kỳ hoặc MBA cùng kiểu; chỉ hiển thị chỉ số
+reference_comparison:
+  label: "So sánh tham khảo"
+  source: "IEC 60076-18:2012; CIGRE TB 342 - so sánh giữa các pha hoặc MBA cùng kiểu khi không có baseline"
+  note: "Pha giữa của MBA 3 pha lõi 3 trụ có khác biệt tự nhiên ở vùng lõi thép (tần số thấp). Không phân loại theo Bảng A.1."
+
+# -----------------------------------------------------------------------------
+# Văn bản kết luận sinh từ mẫu (đặc tả mục 6.8)
+# -----------------------------------------------------------------------------
+conclusion:
+  source: "DL/T 911-2004, Phụ lục A, Bảng A.1"
+  templates:
+    all_normal: "{n_normal}/{n_total} phép đo đạt mức Bình thường theo DL/T 911-2004 Bảng A.1."
+    not_all_normal: "{n_normal}/{n_total} phép đo đạt mức Bình thường theo DL/T 911-2004 Bảng A.1. Mức nặng nhất: {worst_label} ({worst_list})."
+    min_band: "{band} nhỏ nhất {value} (phép đo {index}, {label})"
+    reversed_leads: "{count} phép đo có đầu đo đảo so với baseline ({list})."
+    config_diff: "{count} phép đo có cấu hình đo khác baseline ({list})."
+    resample: "Chế độ căn lưới: {mode}."
+
+report:
+  decimals: 3
+  decimal_comma: true
+  # Báo cáo Word (đặc tả mục 8)
+  font: "Times New Roman"
+  font_size_pt: 13
+  table_font_size_pt: 11
+  organization: "Tổ Thí nghiệm điện Lâm Đồng – Đội Sửa chữa, thí nghiệm điện 3"
+  title_template: "BÁO CÁO ĐÁNH GIÁ SFRA – MBA {name} – TBA {substation}"
+  file_name_template: "SFRA_{name}_{date}.docx"
+  # Giá trị mặc định của phần mềm máy đo, coi như để trống khi điền thông tin chung
+  placeholder_values: ["0", "NewCompany", "NewSerialNumber", "NaN", "none", "make note"]
+  references:
+    - "DL/T 911-2004. Frequency response analysis on winding deformation of power transformers. Phụ lục A (công thức Rxy), Bảng A.1 (phân loại)."
+    - "IEC 60076-18:2012. Power transformers – Part 18: Measurement of frequency response."
+    - "IEEE Std C57.149-2012. IEEE Guide for the Application and Interpretation of Frequency Response Analysis for Oil-Immersed Transformers."
+    - "CIGRE TB 342 (WG A2.26), 2008. Mechanical condition assessment of transformer windings using Frequency Response Analysis (FRA)."
+    - "CIGRE TB 812, 2020. Advances in the interpretation of transformer Frequency Response Analysis (FRA)."
+    - "CIGRE TB 445, 2011. Guide for transformer maintenance."

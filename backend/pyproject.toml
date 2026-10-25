@@ -1,0 +1,9 @@
+[project]
+name = "sfra-analyzer"
+version = "0.1.0"
+description = "SFRA Analyzer Web - DL/T 911-2004 / IEC 60076-18"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
