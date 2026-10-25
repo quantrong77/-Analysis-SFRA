@@ -799,6 +799,19 @@ textarea.yaml-edit {
 .tx-input {
   width: 160px;
 }
+.serial-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.serial-edit .tx-input {
+  width: 200px;
+}
+.serial-edit .muted {
+  flex-basis: 100%;
+}
 ol.outline {
   margin: 8px 0;
   padding-left: 22px;

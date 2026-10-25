@@ -25,7 +25,42 @@ interface Props {
   pending: PendingMapping[];
   onMap: (profile: CsvProfile, item: PendingMapping) => void;
   onSkipPending: (item: PendingMapping) => void;
-  onSetTransformer: (sha256: string, key: string) => void;
+  /** Change the transformer (serial number) of files; empty key restores the value read from the file */
+  onSetTransformer: (sha256s: string[], key: string, fromGroup?: string) => void;
+}
+
+/** Serial number of a whole group; entering another loaded transformer's number merges the two. */
+function SerialEdit({ g, files, others, onApply }: { g: TransformerGroup; files: Trace[]; others: string[]; onApply: (key: string) => void }) {
+  const [value, setValue] = useState(g.key);
+  const edited = [...new Set(files.map((t) => t.transformerKeyOriginal).filter(Boolean))];
+  const next = value.trim();
+  const merge = others.includes(next);
+  return (
+    <form
+      className="serial-edit"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (next && next !== g.key) onApply(next);
+      }}
+    >
+      <label className="field">
+        <span>Số chế tạo</span>
+        <input className="tx-input" list="tx-keys" value={value} onChange={(e) => setValue(e.target.value)} />
+      </label>
+      <button type="submit" disabled={!next || next === g.key}>
+        {merge ? "Gộp vào máy này" : "Đổi số chế tạo"}
+      </button>
+      {edited.length > 0 && (
+        <span className="muted small">
+          Đã sửa, trong file ghi {edited.join(", ")}.{" "}
+          <button type="button" className="link" onClick={() => onApply("")}>
+            Khôi phục
+          </button>
+        </span>
+      )}
+      {merge && <span className="muted small">Các file sẽ thành kỳ đo của máy {next} và được ghép cặp với các file của máy đó.</span>}
+    </form>
+  );
 }
 
 const ACCEPT = ".csv,.sfra,.frax,.xml,.txt,.dat";
@@ -131,6 +166,13 @@ export default function ImportView(p: Props) {
                 <p className="muted">
                   {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
                 </p>
+                <SerialEdit
+                  key={g.key}
+                  g={g}
+                  files={list}
+                  others={p.groups.map((x) => x.key).filter((k) => k !== g.key)}
+                  onApply={(k) => p.onSetTransformer([...new Set(list.map((t) => t.sha256))], k, g.key)}
+                />
               </div>
               <div className="row gap wrap">
                 <label>
@@ -179,7 +221,10 @@ export default function ImportView(p: Props) {
                     </li>
                   )}
                   {p.groups.length > 1 && (
-                    <li>Nếu file kỳ trước ghi số chế tạo khác, sửa cột MBA của file đó trong mục Danh sách file đã nạp.</li>
+                    <li>
+                      Nếu file kỳ trước ghi số chế tạo khác, sửa số chế tạo ở trên (cả nhóm) hoặc cột MBA trong mục Danh sách file đã
+                      nạp (từng file).
+                    </li>
                   )}
                   <li>
                     Khi chưa có baseline, có thể{" "}
@@ -299,11 +344,13 @@ export default function ImportView(p: Props) {
                         <td className="muted">{t.dateSource || "Chưa có"}</td>
                         <td>
                           <input
+                            key={t.transformerKey}
                             className="tx-input"
+                            list="tx-keys"
                             defaultValue={t.transformerKey}
-                            title="Số chế tạo / tên MBA dùng để nhóm file. Sửa khi file không ghi số chế tạo."
+                            title="Số chế tạo dùng để nhóm file thành các kỳ đo của một máy. Để trống để khôi phục giá trị trong file."
                             onBlur={(e) => {
-                              if (e.target.value.trim() !== t.transformerKey) p.onSetTransformer(t.sha256, e.target.value);
+                              if (e.target.value.trim() !== t.transformerKey) p.onSetTransformer([t.sha256], e.target.value);
                             }}
                           />
                         </td>
@@ -325,6 +372,12 @@ export default function ImportView(p: Props) {
           </section>
         );
       })}
+
+      <datalist id="tx-keys">
+        {p.groups.map((g) => (
+          <option key={g.key} value={g.key} />
+        ))}
+      </datalist>
 
       {p.traces.length > 0 && (
         <p>

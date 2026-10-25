@@ -31,6 +31,8 @@ export interface Trace {
   location: string;
   /** Transformer identity used for grouping (serial number, else object/location) */
   transformerKey: string;
+  /** Transformer key read from the file, set when the user has changed transformerKey */
+  transformerKeyOriginal?: string;
   /** Local date-time of the measurement, null when unknown */
   testDate: Date | null;
   dateSource: string;

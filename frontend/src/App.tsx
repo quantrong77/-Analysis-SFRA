@@ -147,7 +147,11 @@ export default function App() {
     return parsed
       .filter((t) => !hidden.has(t.id))
       .map((t) => (ws.dateEdits[t.id] ? { ...t, testDate: new Date(ws.dateEdits[t.id]), dateSource: "Người dùng nhập" } : t))
-      .map((t) => (ws.txEdits[t.sha256] ? { ...t, transformerKey: ws.txEdits[t.sha256] } : t));
+      .map((t) => {
+        const key = ws.txEdits[t.sha256];
+        // an edited serial number replaces the one read from the file everywhere (grouping, nameplate, report)
+        return key ? { ...t, transformerKey: key, serialNumber: key, transformerKeyOriginal: t.transformerKey } : t;
+      });
   }, [parsed, ws.hidden, ws.dateEdits, ws.txEdits]);
 
   // regroup when traces change; first time, seed with the stored session choices
@@ -415,14 +419,19 @@ export default function App() {
             pending={pending}
             onMap={onMap}
             onSkipPending={(item) => setPending((prev) => prev.filter((x) => x !== item))}
-            onSetTransformer={(sha, key) =>
+            onSetTransformer={(shas, key, from) => {
+              const original = new Map(parsed.map((t) => [t.sha256, t.transformerKey]));
               setWs((w) => {
                 const tx = { ...w.txEdits };
-                if (key.trim()) tx[sha] = key.trim();
-                else delete tx[sha];
+                for (const sha of shas) {
+                  // empty, or back to the value in the file: drop the edit
+                  if (key.trim() && key.trim() !== original.get(sha)) tx[sha] = key.trim();
+                  else delete tx[sha];
+                }
                 return { ...w, txEdits: tx };
-              })
-            }
+              });
+              if (from && activeGroup === from) setActiveGroup(key.trim() || null);
+            }}
             onAnalyze={(k) => {
               setActiveGroup(k);
               setView("results");
