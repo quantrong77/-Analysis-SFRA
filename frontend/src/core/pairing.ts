@@ -12,18 +12,25 @@ const normCfg = (s: string) => s.trim().toLowerCase();
 const hasShort = (t: Trace) => !["", "none"].includes(normCfg(t.setting.shortedTerminal));
 
 /**
+ * Open / short-circuit configuration of a trace. Doble .sfra stores measurementType as a number
+ * that is 0 even for short-circuit tests and often leaves shortedTerminal empty, so the shorted
+ * terminals, a "short" measurement type and a "short" in the file name are all accepted.
+ */
+export const measurementConfig = (t: Trace): string =>
+  hasShort(t) ? normCfg(t.setting.shortedTerminal) : /short/i.test(t.setting.measurementType) || /short/i.test(t.sourceName) ? "short" : "open";
+
+/**
  * With an STT in the file name the key is STT + label (spec 4.4). Without one, the label alone
  * can hide different configurations (e.g. "b-N" open circuit and "b-N" with Y1-Y2 shorted), so
- * the measurement type and shorted terminals are added to the key.
+ * the configuration is added to the key.
  */
-export const pairKey = (t: Trace): string =>
-  t.index !== null
-    ? `${t.index}|${t.label}`
-    : `|${t.label}|${normCfg(t.setting.measurementType)}|${normCfg(t.setting.shortedTerminal)}`;
+export const pairKey = (t: Trace): string => (t.index !== null ? `${t.index}|${t.label}` : `|${t.label}|${measurementConfig(t)}`);
 
 /** Label shown in tables: adds the shorted terminals when the key depends on them. */
 export const displayLabel = (t: Trace): string =>
-  t.index === null && hasShort(t) ? `${t.label} (nối tắt ${t.setting.shortedTerminal})` : t.label;
+  t.index !== null || measurementConfig(t) === "open"
+    ? t.label
+    : `${t.label} (nối tắt${hasShort(t) ? ` ${t.setting.shortedTerminal}` : ""})`;
 
 export interface PairRow {
   key: string;

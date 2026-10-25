@@ -21,6 +21,7 @@ interface Props {
   onRemove: (traceId: string) => void;
   onClear: () => void;
   onAnalyze: (groupKey: string) => void;
+  onCompare: (groupKey: string) => void;
   pending: PendingMapping[];
   onMap: (profile: CsvProfile, item: PendingMapping) => void;
   onSkipPending: (item: PendingMapping) => void;
@@ -164,7 +165,31 @@ export default function ImportView(p: Props) {
               </div>
             </div>
             {g.sessions.length < 2 && (
-              <p className="note">Mới có một kỳ đo. Cần thêm file của kỳ khác để so sánh với baseline.</p>
+              <div className="note">
+                <p>
+                  Máy này mới có một kỳ đo ({sessionLabel(g.testSession)}), chưa có baseline để đánh giá theo DL/T 911. Baseline là
+                  file của một ngày đo khác, cùng số chế tạo {g.serialNumber || g.key}.
+                </p>
+                <ul>
+                  <li>Nạp thêm file của kỳ trước.</li>
+                  {g.rows.some((r) => r.candidates.length > 1) && (
+                    <li>
+                      Có phép đo gồm nhiều file trong cùng ngày, app chỉ dùng file mới nhất. Nếu một file thuộc kỳ trước, sửa cột Ngày đo của
+                      file đó trong mục Danh sách file đã nạp.
+                    </li>
+                  )}
+                  {p.groups.length > 1 && (
+                    <li>Nếu file kỳ trước ghi số chế tạo khác, sửa cột MBA của file đó trong mục Danh sách file đã nạp.</li>
+                  )}
+                  <li>
+                    Khi chưa có baseline, có thể{" "}
+                    <button className="link" onClick={() => p.onCompare(g.key)}>
+                      so sánh tham khảo giữa các pha
+                    </button>
+                    .
+                  </li>
+                </ul>
+              </div>
             )}
 
             <div className="table-wrap">
@@ -229,7 +254,7 @@ export default function ImportView(p: Props) {
                 </tbody>
               </table>
             </div>
-            {unpaired.length > 0 && (
+            {g.sessions.length > 1 && unpaired.length > 0 && (
               <p className="note">
                 Thiếu cặp (không tính): {unpaired.map((r) => `${r.index ?? ""} ${r.label}`.trim()).join(", ")}
               </p>

@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { diffFigure, magnitudeFigure, peakMarkers, phaseFigure, type CurveNames } from "../charts/figures";
 import Plot from "../components/Plot";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
-import { compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
-import { dayKey, type TransformerGroup } from "../core/pairing";
+import { bankTraces, compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
+import { dayKey, measurementConfig, type TransformerGroup } from "../core/pairing";
 import type { GridMode } from "../core/resample";
 import { fmtNum } from "../core/rules";
 import type { Standards } from "../core/standards";
@@ -63,7 +63,8 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
 }
 
 export default function CompareView({ std, group, traces, mode }: Props) {
-  const mine = useMemo(() => traces.filter((t) => t.transformerKey === group.key), [traces, group.key]);
+  const bank = useMemo(() => bankTraces(traces, group.key), [traces, group.key]);
+  const mine = bank.traces;
   const [session, setSession] = useState(group.testSession);
   const groups = useMemo(() => phaseGroups(mine, std).filter((g) => g.session === session), [mine, std, session]);
   const [sel, setSel] = useState<{ a: string; b: string } | null>(null);
@@ -127,10 +128,15 @@ export default function CompareView({ std, group, traces, mode }: Props) {
             </select>
           </label>
         </div>
+        {bank.units.length > 1 && (
+          <p className="note">
+            Máy một pha, so sánh cùng các máy một pha khác tại cùng vị trí và cùng ngày đo: {bank.units.join(", ")}.
+          </p>
+        )}
         {rows.length === 0 ? (
           <p className="muted">
-            Không tìm thấy phép đo cùng loại trên các pha khác nhau trong kỳ này (ký hiệu dạng A-a / B-b / C-c, A-N…, Y1-Y2…). Với MBA
-            một pha riêng biệt, dùng phần so sánh hai đường bất kỳ bên dưới.
+            Không tìm thấy phép đo cùng loại trên các pha khác nhau trong kỳ này (ký hiệu dạng A-a / B-b / C-c, A-N, Y1-Y2, Y1_A-Y2_A).
+            Với tổ máy một pha, nạp file của các máy pha còn lại (cùng vị trí, cùng ngày đo); hoặc chọn hai đường bất kỳ ở phần bên dưới.
           </p>
         ) : (
           <div className="table-wrap">
@@ -160,11 +166,15 @@ export default function CompareView({ std, group, traces, mode }: Props) {
                         <strong>{g.pattern}</strong> ({g.members.map((m) => m.trace.index ?? m.trace.label).join(", ")})
                       </td>
                       <td className="small">
-                        {g.measurementType}
-                        {g.shorted && g.shorted !== "none" ? `, nối tắt ${g.shorted}` : ""}
+                        {measurementConfig(a) === "open" ? "Hở mạch" : `Nối tắt${g.shorted && g.shorted !== "none" ? ` ${g.shorted}` : ""}`}
                       </td>
                       <td>
                         {a.label} ↔ {b.label}
+                        {a.transformerKey !== b.transformerKey && (
+                          <div className="muted small">
+                            {a.transformerKey} ↔ {b.transformerKey}
+                          </div>
+                        )}
                       </td>
                       {c
                         ? c.bands.map((x) => (

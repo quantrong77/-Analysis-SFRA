@@ -11,6 +11,7 @@ interface Props {
   group: TransformerGroup;
   results: RowResult[];
   onOpen: (rowKey: string) => void;
+  onCompare: () => void;
 }
 
 export const MODE_OPTIONS: { value: GridMode; label: string }[] = [
@@ -20,7 +21,7 @@ export const MODE_OPTIONS: { value: GridMode; label: string }[] = [
   { value: "C", label: "C: lưới log 200 điểm/decade" },
 ];
 
-export default function ResultsView({ std, group, results, onOpen }: Props) {
+export default function ResultsView({ std, group, results, onOpen, onCompare }: Props) {
   const [filter, setFilter] = useState<string>("all");
   const ok = results.filter((r) => r.result).map((r) => r.result!);
   const conclusion = useMemo(() => (ok.length ? transformerConclusion(ok, std) : null), [ok, std]);
@@ -36,11 +37,29 @@ export default function ResultsView({ std, group, results, onOpen }: Props) {
     <div className="view">
       <header className="view-head">
         <h1>Kết quả kỳ đo</h1>
+        {group.sessions.length < 2 ? (
+          <p className="lede">
+            Kỳ đo {sessionLabel(group.testSession)} là kỳ duy nhất của máy này, chưa có baseline để tính Rxy theo DL/T 911-2004.
+          </p>
+        ) : (
         <p className="lede">
           Lần đo {sessionLabel(group.testSession)} so với baseline {sessionLabel(group.baselineSession)}, hệ số tương quan Rxy theo DL/T
           911-2004 Phụ lục A. Chọn một phép đo để xem giản đồ và bảng tính.
         </p>
+        )}
       </header>
+
+      {group.sessions.length < 2 && (
+        <section className="statement">
+          <p className="statement-text">
+            Cần thêm file của một ngày đo khác, cùng số chế tạo {group.serialNumber || group.key}, làm baseline. Trong lúc chưa có
+            baseline, có thể so sánh tham khảo giữa các pha hoặc với máy cùng kiểu.
+          </p>
+          <button className="primary" onClick={onCompare}>
+            So sánh giữa các pha
+          </button>
+        </section>
+      )}
 
       {conclusion && (
         <section className={`statement lv-border-${conclusion.worst.id}`}>

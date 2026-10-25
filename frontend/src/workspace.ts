@@ -45,7 +45,10 @@ export function computeResults(g: TransformerGroup, byId: Map<string, Trace>, st
   return g.rows.map((row) => {
     const ref = row.baselineId ? byId.get(row.baselineId) : undefined;
     const test = row.testId ? byId.get(row.testId) : undefined;
-    if (!ref || !test) return { row, result: null, error: !ref ? "Thiếu file baseline" : "Thiếu file lần đo" };
+    if (!ref || !test) {
+      const error = !ref ? "Thiếu file baseline" : g.baselineSession === g.testSession ? "Chưa có kỳ đo thứ hai" : "Thiếu file lần đo";
+      return { row, result: null, error };
+    }
     if (ref.id === test.id) return { row, result: null, error: "Baseline và lần đo là cùng một file" };
     try {
       return { row, result: analyzePair(ref, test, std, { mode, index: row.index, label: row.label }), error: null };

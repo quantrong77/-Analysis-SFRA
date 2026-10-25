@@ -427,6 +427,10 @@ export default function App() {
               setActiveGroup(k);
               setView("results");
             }}
+            onCompare={(k) => {
+              setActiveGroup(k);
+              setView("compare");
+            }}
           />
         )}
         {view === "results" && group && (
@@ -438,6 +442,7 @@ export default function App() {
               setRowKey(k);
               setView("detail");
             }}
+            onCompare={() => setView("compare")}
           />
         )}
         {view === "detail" && group && currentRow && (
