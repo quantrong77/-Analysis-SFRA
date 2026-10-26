@@ -2,7 +2,7 @@
 import type { PairResult } from "../core/analysis";
 import type { Extremum, PeakAnalysis } from "../core/peaks";
 import { dayKey } from "../core/pairing";
-import type { Standards } from "../core/standards";
+import { frequencyPartitions, type Standards } from "../core/standards";
 import type { Trace } from "../core/types";
 
 export interface Figure {
@@ -24,15 +24,24 @@ const sessionLabel = (t: Trace) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "?";
 };
 
-// typical-influence zones: [r, g, b, alpha], strong enough to read as regions behind the curves
-const ZONE_RGBA: Record<string, [number, number, number, number]> = {
-  core: [201, 156, 52, 0.22],
-  interaction: [124, 98, 184, 0.2],
-  winding: [52, 120, 170, 0.15],
-  leads: [110, 120, 132, 0.26],
-};
-/** Fill colour of a typical-influence zone, for keys drawn outside the chart */
-export const zoneFill = (key: string): string => rgba(ZONE_RGBA[key] ?? [0, 0, 0, 0.05]);
+type RGBA = [number, number, number, number];
+// regions of a partition, in order from low to high frequency: [r, g, b, alpha], strong enough to
+// read as regions behind the curves
+const PALETTE: RGBA[] = [
+  [201, 156, 52, 0.22],
+  [124, 98, 184, 0.2],
+  [52, 120, 170, 0.15],
+  [110, 120, 132, 0.26],
+  [46, 125, 79, 0.16],
+];
+const paletteAt = (i: number): RGBA => PALETTE[i % PALETTE.length];
+
+/** Fill colour of each region of a partition, in order, for keys drawn outside the chart */
+export function partitionFills(std: Standards, id: string): string[] {
+  const p = frequencyPartitions(std).find((x) => x.id === id);
+  if (!p) return [];
+  return p.zones.map((z, i) => (id === "dlt911" ? (BAND_FILL[z.key] ?? "rgba(0,0,0,0.04)") : rgba(paletteAt(i))));
+}
 const rgba = ([r, g, b, a]: [number, number, number, number]) => `rgba(${r},${g},${b},${a.toFixed(3)})`;
 const mix = (a: [number, number, number, number], b: [number, number, number, number], t: number) =>
   a.map((v, i) => v + (b[i] - v) * t) as [number, number, number, number];
@@ -41,8 +50,8 @@ const BLEND_LOG = 0.12;
 const BLEND_LIN = 0.015;
 const BLEND_STEPS = 8;
 
-/** What is drawn behind the curves: DL/T 911 bands, IEC 60076-18 zones, or nothing. */
-export type Backdrop = "dlt911" | "iec" | "none";
+/** What is drawn behind the curves: a frequency partition (its id in standards.yaml), or "none". */
+export type Backdrop = string;
 
 export interface PlotOptions {
   scale?: "log" | "linear";
@@ -62,23 +71,21 @@ interface Region {
   rgba?: [number, number, number, number];
 }
 
-// IEC zones run from 0 Hz to infinity: clip them to the measured range so they can be drawn on a log axis.
+// Regions may run from 0 Hz to infinity: clip them to the measured range so they can be drawn on a log axis.
+// The DL/T 911 bands keep their own light fills and carry the band's Rxy as label.
 function regions(std: Standards, opt: PlotOptions, fLo: number, fHi: number): Region[] {
-  const backdrop = opt.backdrop ?? "dlt911";
-  if (backdrop === "dlt911") {
-    return Object.entries(std.dlt911.bands).map(([k, b]) => ({
-      key: k, label: opt.bandLabels?.[k]?.text ?? k, lo: b.f_min, hi: b.f_max, fill: BAND_FILL[k] ?? "rgba(0,0,0,0.04)",
-    }));
-  }
-  if (backdrop === "iec") {
-    return Object.entries(std.iec_zones.zones as Record<string, { label: string; f_min: number; f_max: number }>)
-      .map(([k, z]) => {
-        const c = ZONE_RGBA[k] ?? ([0, 0, 0, 0.05] as [number, number, number, number]);
-        return { key: k, label: z.label, lo: Math.max(z.f_min, fLo), hi: Math.min(z.f_max, fHi), fill: rgba(c), rgba: c };
-      })
-      .filter((z) => z.hi > z.lo);
-  }
-  return [];
+  const id = opt.backdrop ?? "dlt911";
+  const p = frequencyPartitions(std).find((x) => x.id === id);
+  if (!p) return [];
+  return p.zones
+    .map((z, i) => {
+      if (id === "dlt911") {
+        return { key: z.key, label: opt.bandLabels?.[z.key]?.text ?? z.key, lo: z.f_min, hi: z.f_max, fill: BAND_FILL[z.key] ?? "rgba(0,0,0,0.04)" };
+      }
+      const c = paletteAt(i);
+      return { key: z.key, label: z.label, lo: Math.max(z.f_min, fLo), hi: Math.min(z.f_max, fHi), fill: rgba(c), rgba: c };
+    })
+    .filter((z) => z.hi > z.lo);
 }
 
 // On a log axis Plotly takes shape x in data units but annotation x in log10 units.
@@ -87,18 +94,19 @@ function backdrop(std: Standards, opt: PlotOptions, fLo: number, fHi: number) {
   const list = regions(std, opt, fLo, fHi);
   const pos = (f: number) => (log ? Math.log10(f) : f);
   // an IEC zone label wider than its zone would run into the next one; DL/T band labels carry Rxy and always show
-  const wide = (z: Region) => opt.backdrop !== "iec" || (pos(z.hi) - pos(z.lo)) / (pos(fHi) - pos(fLo)) >= 0.06;
+  const plain = (opt.backdrop ?? "dlt911") !== "dlt911";
+  const wide = (z: Region) => !plain || (pos(z.hi) - pos(z.lo)) / (pos(fHi) - pos(fLo)) >= 0.06;
   const from = (v: number) => (log ? 10 ** v : v);
   const rect = (x0: number, x1: number, fill: string) => ({
     type: "rect", xref: "x", yref: "paper", x0, x1, y0: 0, y1: 1, fillcolor: fill, line: { width: 0 }, layer: "below",
   });
   const shapes: Record<string, unknown>[] = [];
-  if (opt.backdrop === "iec") {
-    // zones fade into each other over a short stretch around each boundary instead of a hard edge
+  if (plain) {
+    // touching regions fade into each other over a short stretch around the boundary instead of a hard edge
     const half = log ? BLEND_LOG : BLEND_LIN * (fHi - fLo);
     list.forEach((z, i) => {
-      const prev = list[i - 1];
-      const next = list[i + 1];
+      const prev = list[i - 1]?.hi === z.lo ? list[i - 1] : undefined;
+      const next = list[i + 1]?.lo === z.hi ? list[i + 1] : undefined;
       const lo = prev ? Math.min(pos(z.lo) + half, (pos(z.lo) + pos(z.hi)) / 2) : pos(z.lo);
       const hi = next ? Math.max(pos(z.hi) - half, (pos(z.lo) + pos(z.hi)) / 2) : pos(z.hi);
       shapes.push(rect(from(lo), from(hi), z.fill));
@@ -122,8 +130,8 @@ function backdrop(std: Standards, opt: PlotOptions, fLo: number, fHi: number) {
       list.filter(wide).map((z) => ({
         xref: "x", yref: "paper", x: log ? (Math.log10(z.lo) + Math.log10(z.hi)) / 2 : (z.lo + z.hi) / 2, y, yanchor: "top",
         text: z.label, showarrow: false,
-        font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? (opt.backdrop === "iec" ? "#2f3b47" : "#6a7682") },
-        ...(opt.backdrop === "iec" ? { bgcolor: "rgba(255,255,255,0.72)", borderpad: 2 } : {}),
+        font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? (plain ? "#2f3b47" : "#6a7682") },
+        ...(plain ? { bgcolor: "rgba(255,255,255,0.72)", borderpad: 2 } : {}),
       })),
     ),
   };
@@ -192,7 +200,7 @@ export function bodeFigure(
       xaxis: { ...xAxisOf(opt), anchor: "y2" },
       yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb", domain: [0.53, 1] },
       yaxis2: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 90, gridcolor: "#e3e7eb", domain: [0, 0.45] },
-      ...backdrop(std, { ...opt, labelRows: opt.labelRows ?? (opt.backdrop === "iec" ? [0.995, 0.445] : [0.995]) }, ...span([r.baseline, r.test, ...extras])),
+      ...backdrop(std, { ...opt, labelRows: opt.labelRows ?? (opt.backdrop && !["dlt911", "none"].includes(opt.backdrop) ? [0.995, 0.445] : [0.995]) }, ...span([r.baseline, r.test, ...extras])),
     },
   };
 }

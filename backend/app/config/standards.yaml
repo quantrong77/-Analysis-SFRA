@@ -138,11 +138,68 @@ actions:
 iec_zones:
   source: "IEC 60076-18:2012, Phụ lục B (ví dụ minh họa, không bắt buộc)"
   note: "IEC 60076-18 không quy định ngưỡng định lượng"
+  # influence: ảnh hưởng của từng vùng, dịch sát IEC 60076-18:2012, Phụ lục B, B.3 (hiện khi trỏ chuột lên giản đồ)
+  influence_source: "IEC 60076-18:2012, Phụ lục B, B.3"
+  influence_note: "Không có giới hạn tần số áp dụng chung cho từng vùng; ranh giới phụ thuộc kích thước máy và thông số các cuộn dây"
   zones:
-    core:      {label: "Lõi thép",             f_min: 0.0,       f_max: 2000.0}
-    interaction: {label: "Tương tác cuộn dây", f_min: 2000.0,    f_max: 20000.0}
-    winding:   {label: "Cấu trúc cuộn dây",    f_min: 20000.0,   f_max: 1000000.0}
-    leads:     {label: "Ảnh hưởng dây đo",     f_min: 1000000.0, f_max: .inf}
+    core:
+      label: "Lõi thép"
+      f_min: 0.0
+      f_max: 2000.0
+      influence: "Đáp ứng chủ yếu do điện cảm từ hóa của lõi thép và điện dung tổng của máy biến áp. Với máy ba pha lõi ba trụ, pha giữa thường có một điểm phản cộng hưởng; hai pha ngoài thường có hai, do có hai đường từ trở khác nhau. Từ dư trong lõi cũng ảnh hưởng vùng này; lõi năm trụ cho đáp ứng khác."
+    interaction:
+      label: "Tương tác cuộn dây"
+      f_min: 2000.0
+      f_max: 20000.0
+      influence: "Đáp ứng chủ yếu do ghép nối giữa các cuộn dây, phụ thuộc nhiều vào cách bố trí và đấu nối cuộn dây (đấu tam giác, cuộn tự ngẫu, máy một pha hay ba pha). Cuộn dây tự ngẫu thường có hai cộng hưởng đặc trưng trong vùng này."
+    winding:
+      label: "Cấu trúc cuộn dây"
+      f_min: 20000.0
+      f_max: 1000000.0
+      influence: "Đáp ứng do điện cảm tản của cuộn dây cùng điện dung nối tiếp và điện dung với đất; điện dung nối tiếp ảnh hưởng nhiều nhất đến hình dạng đường cong. Cuộn cao áp có điện dung nối tiếp lớn (quấn xen kẽ, có màn chắn) thường có biên độ tăng dần, ít cộng hưởng; cuộn hạ áp có điện dung nối tiếp nhỏ thường có biên độ phẳng, xen nhiều cộng hưởng và phản cộng hưởng."
+    leads:
+      label: "Ảnh hưởng dây đo"
+      f_min: 1000000.0
+      f_max: .inf
+      influence: "Đáp ứng kém lặp lại, chịu ảnh hưởng của cách bố trí phép đo, nhất là dây nối đất, vốn phụ thuộc chiều dài sứ xuyên. Vùng này bắt đầu từ trên 1 MHz với máy trên 72,5 kV, từ trên 2 MHz với máy đến 72,5 kV."
+
+# -----------------------------------------------------------------------------
+# Phân vùng tần số hiển thị trên giản đồ (chỉ để đọc giản đồ, không dùng để kết luận).
+# Mỗi cách chia lấy nguyên văn từ tài liệu tham chiếu; zones_from dùng lại vùng đã khai báo ở trên.
+# -----------------------------------------------------------------------------
+frequency_partitions:
+  note: "Ranh giới các vùng là giá trị tiêu biểu nêu trong tài liệu, vị trí thực tế phụ thuộc thiết kế máy"
+  schemes:
+    - id: dlt911
+      label: "DL/T 911-2004 (LF / MF / HF)"
+      source: "DL/T 911-2004, Phụ lục A, ghi chú Bảng A.1; mục 7.4"
+      zones_from: dlt911.bands
+    - id: iec
+      label: "IEC 60076-18 (vùng ảnh hưởng)"
+      source: "IEC 60076-18:2012, Phụ lục B, B.3, Hình B.6 (ví dụ minh họa, không bắt buộc)"
+      zones_from: iec_zones.zones
+    - id: ieee
+      label: "IEEE C57.149-2012 (4 vùng)"
+      source: "IEEE C57.149-2012, Phụ lục A, Hình A.6 (ví dụ cuộn cao áp MBA tự ngẫu)"
+      zones:
+        r1: {label: "Vùng 1: lõi thép",          f_min: 0.0,       f_max: 2000.0}
+        r2: {label: "Vùng 2: tương tác cuộn dây", f_min: 2000.0,    f_max: 20000.0}
+        r3: {label: "Vùng 3: cấu trúc cuộn dây",  f_min: 20000.0,   f_max: 1000000.0}
+        r4: {label: "Vùng 4: dây nối nấc, dây tiếp địa đo", f_min: 1000000.0, f_max: .inf}
+    - id: cigre342
+      label: "CIGRE TB 342 (thấp / trung gian / cao)"
+      source: "CIGRE TB 342, mục 3.2.3.1, Hình 17 (cuộn cao áp MBA tự ngẫu công suất lớn)"
+      zones:
+        low:          {label: "Tần số thấp",       f_min: 0.0,     f_max: 2000.0}
+        intermediate: {label: "Tần số trung gian", f_min: 2000.0,  f_max: 20000.0}
+        high:         {label: "Tần số cao",        f_min: 20000.0, f_max: 2000000.0}
+    - id: cigre812
+      label: "CIGRE TB 812 (dải tính chỉ số)"
+      source: "CIGRE TB 812, mục 8.3, Bảng 8.2 và 8.3 (dải dùng khi tính chỉ số trong các trường hợp nghiên cứu)"
+      zones:
+        low:    {label: "Dải thấp", f_min: 1000.0,   f_max: 10000.0}
+        medium: {label: "Dải trung", f_min: 10000.0,  f_max: 500000.0}
+        high:   {label: "Dải cao",  f_min: 500000.0, f_max: 1000000.0}
 
 # -----------------------------------------------------------------------------
 # Kiểm tra chất lượng dữ liệu khi nhập (đặc tả mục 4.3) - cảnh báo, không chặn

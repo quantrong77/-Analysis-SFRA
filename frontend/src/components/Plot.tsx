@@ -5,7 +5,11 @@ interface Props {
   data: unknown[];
   layout: Record<string, unknown>;
   height?: number;
+  /** Frequency (x value) under the mouse, while it moves over the plot */
+  onHoverX?: (x: number) => void;
 }
+
+type PlotlyEl = { on: (ev: string, fn: (e: { points?: { x: unknown }[] }) => void) => void };
 
 const BASE_LAYOUT = {
   margin: { l: 64, r: 18, t: 30, b: 50 },
@@ -17,19 +21,32 @@ const BASE_LAYOUT = {
   hovermode: "x unified",
 };
 
-export default function Plot({ data, layout, height = 340 }: Props) {
+export default function Plot({ data, layout, height = 340, onHoverX }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  // the listener is attached once; it calls whatever callback the latest render passed
+  const hover = useRef(onHoverX);
+  hover.current = onHoverX;
+  const bound = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     // Plotly writes zoom ranges into the layout it is given: pass a copy so the caller's figure stays as built
-    void Plotly.react(el, data, structuredClone({ ...BASE_LAYOUT, ...layout, height }), {
+    const drawn = Plotly.react(el, data, structuredClone({ ...BASE_LAYOUT, ...layout, height }), {
       responsive: true,
       displaylogo: false,
       locale: "vi",
       modeBarButtonsToRemove: ["select2d", "lasso2d"],
       toImageButtonOptions: { format: "png", scale: 2 },
+    });
+    // Plotly gives the element its event methods when it first draws: listen once after that
+    void drawn.then(() => {
+      if (bound.current) return;
+      bound.current = true;
+      (el as unknown as PlotlyEl).on("plotly_hover", (e) => {
+        const x = Number(e.points?.[0]?.x);
+        if (Number.isFinite(x)) hover.current?.(x);
+      });
     });
   }, [data, layout, height]);
 

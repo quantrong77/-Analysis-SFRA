@@ -897,6 +897,15 @@ textarea.yaml-edit {
   border-radius: var(--radius);
   margin-bottom: 6px;
 }
+.partition-pick {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.partition-pick select {
+  max-width: 100%;
+}
 .seg {
   display: inline-flex;
   align-items: center;
@@ -929,6 +938,23 @@ textarea.yaml-edit {
   margin-left: auto;
 }
 
+/* influence of the zone under the mouse; the height is reserved so the plot below never moves while hovering */
+.zone-info {
+  height: 9.6em;
+  overflow-y: auto;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--winding);
+  background: var(--sheet);
+  max-width: 110ch;
+}
+.zone-info p {
+  margin: 0 0 4px;
+}
+.zone-info-head strong {
+  font-family: var(--font-cond);
+  font-size: 15.5px;
+}
 .zone-key {
   display: flex;
   flex-wrap: wrap;

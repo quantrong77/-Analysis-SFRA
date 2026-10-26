@@ -89,3 +89,37 @@ export async function validateStandards(text: string, probe: (s: Standards) => v
   }
   return { std: problems.length ? null : s, problems };
 }
+
+export interface PartitionZone {
+  key: string;
+  label: string;
+  f_min: number;
+  f_max: number;
+}
+
+/** A way of dividing the frequency axis into regions, as one reference document describes it. */
+export interface Partition {
+  id: string;
+  label: string;
+  source: string;
+  zones: PartitionZone[];
+}
+
+type ZoneMap = Record<string, { label: string; f_min: number; f_max: number }>;
+
+/**
+ * Frequency partitions shown on the Bode plots (frequency_partitions in standards.yaml); a scheme
+ * may reuse regions declared elsewhere with zones_from ("dlt911.bands", "iec_zones.zones").
+ * An edited ruleset without the section still gets the DL/T 911 bands and the IEC zones.
+ */
+export function frequencyPartitions(std: Standards): Partition[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const at = (path: string): ZoneMap => path.split(".").reduce((o, k) => o?.[k], std as unknown as Record<string, any>) ?? {};
+  const zones = (m: ZoneMap): PartitionZone[] =>
+    Object.entries(m).map(([key, z]) => ({ key, label: z.label, f_min: z.f_min, f_max: z.f_max }));
+  const schemes = (std.frequency_partitions?.schemes ?? [
+    { id: "dlt911", label: "DL/T 911-2004 (LF / MF / HF)", source: std.dlt911.source, zones_from: "dlt911.bands" },
+    { id: "iec", label: "IEC 60076-18 (vùng ảnh hưởng)", source: std.iec_zones?.source ?? "", zones_from: "iec_zones.zones" },
+  ]) as { id: string; label: string; source: string; zones_from?: string; zones?: ZoneMap }[];
+  return schemes.map((s) => ({ id: s.id, label: s.label, source: s.source, zones: zones(s.zones_from ? at(s.zones_from) : (s.zones ?? {})) }));
+}

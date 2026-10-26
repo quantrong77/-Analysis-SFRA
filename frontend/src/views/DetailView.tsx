@@ -3,6 +3,7 @@ import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type PlotOptions } 
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
 import PlotTools from "../components/PlotTools";
+import ZoneInfo from "../components/ZoneInfo";
 import { DateTimeInput } from "../components/DateTime";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
@@ -46,7 +47,10 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
   const [tab, setTab] = useState<Tab>("compare");
   const [extra, setExtra] = useState<string[]>([]);
   const [showPeaks, setShowPeaks] = useState(true);
-  const [backdrop, setBackdrop] = useState<Backdrop>("dlt911");
+  const [partition, setPartition] = useState<Backdrop>("dlt911");
+  const [showPartition, setShowPartition] = useState(true);
+  const [hoverF, setHoverF] = useState<number | null>(null);
+  const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
   // remounting the plot is the reset to the full frequency range
   const [fit, setFit] = useState(0);
@@ -142,18 +146,21 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
           <>
             <PlotTools
               std={std}
-              backdrop={backdrop}
-              onBackdrop={setBackdrop}
+              partition={partition}
+              onPartition={setPartition}
+              showPartition={showPartition}
+              onShowPartition={setShowPartition}
               scale={scale}
               onScale={setScale}
               showPeaks={showPeaks}
               onShowPeaks={setShowPeaks}
               onFit={() => setFit((n) => n + 1)}
+              partitionNote={backdrop === "dlt911" ? "Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1." : undefined}
             />
-            {backdrop === "dlt911" && <p className="muted small">Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1.</p>}
-            <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} />
+            <ZoneInfo std={std} freq={hoverF} />
+            <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} />
             <h3>Hiệu số biên độ ΔdB</h3>
-            <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} />
+            <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} onHoverX={setHoverF} />
             {others.length > 0 && (
               <details>
                 <summary>Thêm đường của kỳ khác hoặc pha khác lên đồ thị ({extra.length} đã chọn)</summary>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type CurveNames, type PlotOptions } from "../charts/figures";
 import Plot from "../components/Plot";
 import PlotTools from "../components/PlotTools";
+import ZoneInfo from "../components/ZoneInfo";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import { bankTraces, compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
 import { dayKey, measurementConfig, type TransformerGroup } from "../core/pairing";
@@ -22,7 +23,10 @@ const traceName = (t: Trace) => `${t.index !== null ? `${t.index} ` : ""}${t.lab
 const phaseName = (t: Trace) => phasePattern(t.label)?.phase ?? t.label;
 
 function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards; names: CurveNames }) {
-  const [backdrop, setBackdrop] = useState<Backdrop>("iec");
+  const [partition, setPartition] = useState<Backdrop>("iec");
+  const [showPartition, setShowPartition] = useState(true);
+  const [hoverF, setHoverF] = useState<number | null>(null);
+  const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
   const [showPeaks, setShowPeaks] = useState(true);
   const [fit, setFit] = useState(0);
@@ -53,17 +57,20 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
       </div>
       <PlotTools
         std={std}
-        backdrop={backdrop}
-        onBackdrop={setBackdrop}
+        partition={partition}
+        onPartition={setPartition}
+        showPartition={showPartition}
+        onShowPartition={setShowPartition}
         scale={scale}
         onScale={setScale}
         showPeaks={showPeaks}
         onShowPeaks={setShowPeaks}
         onFit={() => setFit((n) => n + 1)}
       />
-      <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} />
+      <ZoneInfo std={std} freq={hoverF} />
+      <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} />
       <h3>Hiệu số ΔdB (đường 2 − đường 1)</h3>
-      <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} />
+      <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} onHoverX={setHoverF} />
       <h3>Rxy và chỉ số TB 812 theo dải DL/T 911 (không phân loại)</h3>
       <Tb812Table ranges={c.bands} std={std} showRxy />
       <h3>Theo vùng IEC 60076-18</h3>
