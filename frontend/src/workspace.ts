@@ -27,7 +27,9 @@ export function regroup(traces: Trace[], previous: TransformerGroup[]): Transfor
     const list = traces.filter((t) => t.transformerKey === g.key);
     const rows = buildRows(list, baselineSession, testSession).map((r) => {
       const old = p.rows.find((o) => o.key === r.key);
-      if (!old) return r;
+      // files added to or removed from this measurement: the user's earlier choice no longer applies
+      const sameFiles = old && old.candidates.length === r.candidates.length && old.candidates.every((id) => r.candidates.includes(id));
+      if (!old || !sameFiles) return r;
       const ok = (id: string | null) => id === null || r.candidates.includes(id);
       const sameSessions = p.baselineSession === baselineSession && p.testSession === testSession;
       return sameSessions && ok(old.baselineId) && ok(old.testId) ? { ...r, baselineId: old.baselineId, testId: old.testId } : r;

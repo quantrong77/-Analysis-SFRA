@@ -16,8 +16,40 @@ const hasShort = (t: Trace) => !["", "none"].includes(normCfg(t.setting.shortedT
  * that is 0 even for short-circuit tests and often leaves shortedTerminal empty, so the shorted
  * terminals, a "short" measurement type and a "short" in the file name are all accepted.
  */
-export const measurementConfig = (t: Trace): string =>
-  hasShort(t) ? normCfg(t.setting.shortedTerminal) : /short/i.test(t.setting.measurementType) || /short/i.test(t.sourceName) ? "short" : "open";
+export const measurementConfig = (t: Trace): string => {
+  if (hasShort(t)) return normCfg(t.setting.shortedTerminal);
+  if (/short/i.test(t.setting.measurementType)) return "short";
+  if (/open/i.test(t.setting.measurementType)) return "open";
+  return /short/i.test(t.sourceName) ? "short" : "open";
+};
+
+/** What a trace is paired by: STT, label and shorted terminals ("" open circuit, "short" terminals unknown). */
+export interface MeasurementId {
+  index: number | null;
+  label: string;
+  shorted: string;
+}
+
+export function measurementIdOf(t: Trace): MeasurementId {
+  const c = measurementConfig(t);
+  return { index: t.index, label: t.label, shorted: c === "open" ? "" : hasShort(t) ? t.setting.shortedTerminal.trim() : "short" };
+}
+
+/** A trace re-labelled by the user so that it pairs with the intended measurement. */
+export function withMeasurementId(t: Trace, m: MeasurementId): Trace {
+  const short = m.shorted.trim() !== "";
+  const terminals = short && m.shorted.trim().toLowerCase() !== "short" ? m.shorted.trim() : "";
+  return {
+    ...t,
+    index: m.index,
+    label: m.label.trim(),
+    setting: { ...t.setting, measurementType: short ? "ShortCircuit" : "OpenCircuit", shortedTerminal: short ? terminals : "none" },
+    measurementOriginal: t.measurementOriginal ?? measurementIdOf(t),
+  };
+}
+
+export const sameMeasurementId = (a: MeasurementId, b: MeasurementId): boolean =>
+  a.index === b.index && a.label.trim() === b.label.trim() && normCfg(a.shorted) === normCfg(b.shorted);
 
 /**
  * With an STT in the file name the key is STT + label (spec 4.4). Without one, the label alone

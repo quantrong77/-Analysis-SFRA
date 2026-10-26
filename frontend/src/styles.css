@@ -799,6 +799,18 @@ textarea.yaml-edit {
 .tx-input {
   width: 160px;
 }
+.meas-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.meas-edit .stt-input {
+  width: 64px;
+}
+.meas-edit .label-input {
+  width: 110px;
+}
 .serial-edit {
   display: flex;
   flex-wrap: wrap;

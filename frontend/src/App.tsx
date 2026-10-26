@@ -3,7 +3,7 @@ import { transformerConclusion } from "./core/rules";
 import { NeedsMappingError, parseFile, type CsvProfile } from "./core/parsers";
 import type { PendingMapping } from "./components/CsvMapping";
 import { signatureOf } from "./core/parsers/genericCsv";
-import type { TransformerGroup } from "./core/pairing";
+import { measurementIdOf, sameMeasurementId, withMeasurementId, type TransformerGroup } from "./core/pairing";
 import type { GridMode } from "./core/resample";
 import { loadStandards, sha256Hex, validateStandards, type Standards } from "./core/standards";
 import { classify } from "./core/dlt911";
@@ -147,12 +147,13 @@ export default function App() {
     return parsed
       .filter((t) => !hidden.has(t.id))
       .map((t) => (ws.dateEdits[t.id] ? { ...t, testDate: new Date(ws.dateEdits[t.id]), dateSource: "Người dùng nhập" } : t))
+      .map((t) => (ws.measurementEdits[t.id] ? withMeasurementId(t, ws.measurementEdits[t.id]) : t))
       .map((t) => {
         const key = ws.txEdits[t.sha256];
         // an edited serial number replaces the one read from the file everywhere (grouping, nameplate, report)
         return key ? { ...t, transformerKey: key, serialNumber: key, transformerKeyOriginal: t.transformerKey } : t;
       });
-  }, [parsed, ws.hidden, ws.dateEdits, ws.txEdits]);
+  }, [parsed, ws.hidden, ws.dateEdits, ws.txEdits, ws.measurementEdits]);
 
   // regroup when traces change; first time, seed with the stored session choices
   useEffect(() => {
@@ -419,6 +420,16 @@ export default function App() {
             pending={pending}
             onMap={onMap}
             onSkipPending={(item) => setPending((prev) => prev.filter((x) => x !== item))}
+            onSetMeasurement={(id, m) => {
+              const original = parsed.find((t) => t.id === id);
+              setWs((w) => {
+                const edits = { ...w.measurementEdits };
+                // null, or back to what the file says: drop the edit
+                if (m && original && !sameMeasurementId(m, measurementIdOf(original))) edits[id] = m;
+                else delete edits[id];
+                return { ...w, measurementEdits: edits };
+              });
+            }}
             onSetTransformer={(shas, key, from) => {
               const original = new Map(parsed.map((t) => [t.sha256, t.transformerKey]));
               setWs((w) => {

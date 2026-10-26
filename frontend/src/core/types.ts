@@ -33,6 +33,8 @@ export interface Trace {
   transformerKey: string;
   /** Transformer key read from the file, set when the user has changed transformerKey */
   transformerKeyOriginal?: string;
+  /** STT, label and shorted terminals read from the file, set when the user has changed them */
+  measurementOriginal?: { index: number | null; label: string; shorted: string };
   /** Local date-time of the measurement, null when unknown */
   testDate: Date | null;
   dateSource: string;

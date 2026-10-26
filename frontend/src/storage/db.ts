@@ -3,6 +3,7 @@
  * The original files are stored with their SHA-256 and re-parsed on start-up, so the
  * file stays the source of truth; only the user's edits are stored besides it.
  */
+import type { MeasurementId } from "../core/pairing";
 import type { CsvProfile } from "../core/parsers/genericCsv";
 import type { GridMode } from "../core/resample";
 import type { ReportInfo } from "../report/info";
@@ -29,12 +30,14 @@ export interface WorkspaceState {
   profiles: CsvProfile[];
   /** file sha256 -> transformer key entered by the user (files without serial number) */
   txEdits: Record<string, string>;
+  /** trace id -> STT, label and shorted terminals entered by the user so the trace pairs correctly */
+  measurementEdits: Record<string, MeasurementId>;
   /** user-edited standards.yaml text; null = built-in ruleset */
   customRules: string | null;
 }
 
 export const emptyWorkspace = (): WorkspaceState => ({
-  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, customRules: null,
+  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, measurementEdits: {}, customRules: null,
 });
 
 const DB_NAME = "sfra-analyzer";

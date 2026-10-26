@@ -53,6 +53,7 @@ export function mergeWorkspace(cur: WorkspaceState, inc: WorkspaceState): Worksp
     mode: inc.mode ?? cur.mode,
     profiles: [...cur.profiles.filter((p) => !inc.profiles.some((q) => q.id === p.id)), ...inc.profiles],
     txEdits: { ...cur.txEdits, ...inc.txEdits },
+    measurementEdits: { ...cur.measurementEdits, ...inc.measurementEdits },
     customRules: inc.customRules ?? cur.customRules,
   };
 }

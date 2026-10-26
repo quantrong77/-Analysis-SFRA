@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { checkTrace, fmtHz } from "../core/quality";
-import type { TransformerGroup } from "../core/pairing";
+import { displayLabel, measurementIdOf, type MeasurementId, type TransformerGroup } from "../core/pairing";
 import type { Standards } from "../core/standards";
 import type { Trace } from "../core/types";
 import CsvMapping, { type PendingMapping } from "../components/CsvMapping";
@@ -27,6 +27,70 @@ interface Props {
   onSkipPending: (item: PendingMapping) => void;
   /** Change the transformer (serial number) of files; empty key restores the value read from the file */
   onSetTransformer: (sha256s: string[], key: string, fromGroup?: string) => void;
+  /** Change what a trace is paired by; null restores the values read from the file */
+  onSetMeasurement: (traceId: string, m: MeasurementId | null) => void;
+}
+
+/** STT, label and open / short configuration of one trace, editable so it pairs with the right measurement. */
+function MeasurementFields({ t, onSet }: { t: Trace; onSet: (m: MeasurementId | null) => void }) {
+  const id = measurementIdOf(t);
+  const short = id.shorted !== "";
+  const set = (patch: Partial<MeasurementId>) => onSet({ ...id, ...patch });
+  return (
+    <div className="meas-edit">
+      <input
+        key={`i${id.index}`}
+        className="stt-input"
+        type="number"
+        min={1}
+        step={1}
+        placeholder="STT"
+        aria-label="STT"
+        defaultValue={id.index ?? ""}
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          const n = v ? Number(v) : null;
+          if (n !== id.index && (n === null || (Number.isInteger(n) && n > 0))) set({ index: n });
+        }}
+      />
+      <input
+        key={`l${id.label}`}
+        className="label-input"
+        aria-label="Ký hiệu phép đo"
+        defaultValue={id.label}
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          if (v && v !== id.label) set({ label: v });
+        }}
+      />
+      <select
+        aria-label="Cấu hình"
+        value={short ? "short" : "open"}
+        onChange={(e) => set({ shorted: e.target.value === "short" ? t.measurementOriginal?.shorted || "short" : "" })}
+      >
+        <option value="open">Hở mạch</option>
+        <option value="short">Nối tắt</option>
+      </select>
+      {short && (
+        <input
+          key={`s${id.shorted}`}
+          className="label-input"
+          placeholder="Đầu nối tắt"
+          aria-label="Đầu nối tắt"
+          defaultValue={id.shorted === "short" ? "" : id.shorted}
+          onBlur={(e) => {
+            const v = e.target.value.trim() || "short";
+            if (v !== id.shorted) set({ shorted: v });
+          }}
+        />
+      )}
+      {t.measurementOriginal && (
+        <button type="button" className="link" onClick={() => onSet(null)}>
+          Khôi phục
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** Serial number of a whole group; entering another loaded transformer's number merges the two. */
@@ -254,24 +318,45 @@ export default function ImportView(p: Props) {
                   {g.rows.map((r) => {
                     const test = r.testId ? byId.get(r.testId) : undefined;
                     const base = r.baselineId ? byId.get(r.baselineId) : undefined;
-                    const pick = (field: "baselineId" | "testId", id: string) =>
+                    const pick = (field: "baselineId" | "testId", id: string) => {
+                      if (id && !r.candidates.includes(id)) {
+                        // a file of another measurement: give it this row's STT, label and configuration
+                        p.onSetMeasurement(id, measurementIdOf(byId.get(r.candidates[0])!));
+                        return;
+                      }
                       updateGroup({
                         ...g,
                         rows: g.rows.map((x) => (x.key === r.key ? { ...x, [field]: id || null } : x)),
                       });
-                    const sel = (field: "baselineId" | "testId", cur?: Trace) => (
-                      <select value={cur?.id ?? ""} onChange={(e) => pick(field, e.target.value)}>
-                        <option value="">— không có —</option>
-                        {r.candidates.map((id) => {
-                          const t = byId.get(id)!;
-                          return (
-                            <option key={id} value={id}>
-                              {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    );
+                    };
+                    const sel = (field: "baselineId" | "testId", cur?: Trace) => {
+                      const session = field === "baselineId" ? g.baselineSession : g.testSession;
+                      const others = list.filter((t) => dayKey(t.testDate) === session && !r.candidates.includes(t.id));
+                      return (
+                        <select value={cur?.id ?? ""} onChange={(e) => pick(field, e.target.value)}>
+                          <option value="">— không có —</option>
+                          {r.candidates.map((id) => {
+                            const t = byId.get(id)!;
+                            return (
+                              <option key={id} value={id}>
+                                {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
+                              </option>
+                            );
+                          })}
+                          {others.length > 0 && (
+                            <optgroup label="Gán file khác của kỳ này vào phép đo này">
+                              {others.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.index !== null ? `${t.index} ` : ""}
+                                  {displayLabel(t)}: {t.sourceName}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                      );
+                    };
+                    const edited = r.candidates.some((id) => byId.get(id)?.measurementOriginal);
                     const q = [
                       ...(base ? checkTrace(base, p.std).map((w) => ({ ...w, message: `Baseline: ${w.message}` })) : []),
                       ...(test ? checkTrace(test, p.std).map((w) => ({ ...w, message: `Lần đo: ${w.message}` })) : []),
@@ -281,6 +366,7 @@ export default function ImportView(p: Props) {
                         <td className="num">{r.index ?? "–"}</td>
                         <td>
                           <strong>{r.label}</strong>
+                          {edited && <div className="muted small">Đã sửa phép đo</div>}
                         </td>
                         <td>{sel("baselineId", base)}</td>
                         <td>{sel("testId", test)}</td>
@@ -317,6 +403,7 @@ export default function ImportView(p: Props) {
                       <th>Ngày đo</th>
                       <th>Nguồn ngày</th>
                       <th>MBA</th>
+                      <th>Phép đo (STT, ký hiệu, cấu hình)</th>
                       <th>Đầu đo</th>
                       <th>Ghi chú</th>
                       <th></th>
@@ -353,6 +440,9 @@ export default function ImportView(p: Props) {
                               if (e.target.value.trim() !== t.transformerKey) p.onSetTransformer([t.sha256], e.target.value);
                             }}
                           />
+                        </td>
+                        <td>
+                          <MeasurementFields t={t} onSet={(m) => p.onSetMeasurement(t.id, m)} />
                         </td>
                         <td className="nowrap">
                           {t.setting.redLead || "–"} → {t.setting.blackLead || "–"}

@@ -1,7 +1,7 @@
 /** Pairing keys across vendor formats and phase comparison of single-phase banks (synthetic traces). */
 import { describe, expect, it } from "vitest";
 import { bankTraces, phaseGroups, phasePattern } from "../src/core/compare";
-import { groupTraces, pairKey } from "../src/core/pairing";
+import { groupTraces, measurementIdOf, pairKey, sameMeasurementId, withMeasurementId } from "../src/core/pairing";
 import { emptySetting, type Trace } from "../src/core/types";
 import { std } from "./helpers";
 
@@ -64,5 +64,28 @@ describe("tổ máy một pha", () => {
     const three = (["A", "B", "C"] as const).map((p) => trace("SN-3P", `${p}-N`, D2));
     const other = trace("SN-1P", "a-A", D2);
     expect(bankTraces([...three, other], "SN-3P").units).toEqual(["SN-3P"]);
+  });
+});
+
+describe("sửa phép đo để ghép đúng cặp", () => {
+  it("file kỳ trước đặt ký hiệu khác: sửa ký hiệu thì ghép được", () => {
+    const base = trace("SN-A", "Y1-Y2", D1, { measurementType: "OpenCircuit", shortedTerminal: "none" });
+    const test = trace("SN-A", "Y1_A-Y2_A", D2, { measurementType: "OpenCircuit", shortedTerminal: "none" });
+    expect(groupTraces([base, test])[0].rows).toHaveLength(2);
+    const fixed = withMeasurementId(base, measurementIdOf(test));
+    expect(fixed.measurementOriginal).toEqual({ index: null, label: "Y1-Y2", shorted: "" });
+    const [g] = groupTraces([fixed, test]);
+    expect(g.rows).toHaveLength(1);
+    expect([g.rows[0].baselineId, g.rows[0].testId]).toEqual([base.id, test.id]);
+  });
+
+  it("đổi cấu hình: hở mạch thắng chữ short trong tên file; nối tắt giữ đầu nối tắt", () => {
+    const t = trace("SN-A", "a-N", D1, { measurementType: "0" }, "x_a-N_short_Y12.sfra");
+    expect(measurementIdOf(t).shorted).toBe("short");
+    const open = withMeasurementId(t, { ...measurementIdOf(t), shorted: "" });
+    expect(measurementIdOf(open).shorted).toBe("");
+    const short = withMeasurementId(t, { ...measurementIdOf(t), shorted: "Y1-Y2" });
+    expect(pairKey(short)).toBe(pairKey(trace("SN-A", "a-N", D2, { measurementType: "ShortCircuit", shortedTerminal: "Y1-Y2" })));
+    expect(sameMeasurementId(measurementIdOf(t), { index: null, label: "a-N", shorted: "SHORT" })).toBe(true);
   });
 });
