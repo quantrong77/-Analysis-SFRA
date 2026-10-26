@@ -156,6 +156,15 @@ button.link {
   text-underline-offset: 3px;
   font-weight: 500;
 }
+button.danger:not(.link) {
+  color: var(--test);
+  border-color: #e3b6b1;
+}
+button.danger:not(.link):hover:not(:disabled) {
+  color: #fff;
+  background: var(--test);
+  border-color: var(--test);
+}
 button.link.danger {
   color: var(--test);
 }
@@ -925,8 +934,14 @@ textarea.yaml-edit {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  margin-top: 8px;
+  gap: 10px;
+  margin: 16px 0 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--rule);
+}
+/* destructive action sits apart from the others */
+.group-actions .push-end {
+  margin-left: auto;
 }
 
 /* chart toolbar: backdrop, axis, markers, reset */
@@ -1065,11 +1080,6 @@ textarea.yaml-edit {
 .times table {
   background: var(--sheet);
 }
-.session-pick {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-}
 .session-date {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1105,18 +1115,40 @@ textarea.yaml-edit {
 .meas-edit .label-input {
   width: 110px;
 }
-.serial-edit {
+/* group header: serial number, baseline and test session side by side, label above each field,
+   helper links underneath; fields line up on their labels */
+.group-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px 36px;
+  margin-top: 12px;
+}
+.group-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+}
+.group-field > .field select {
+  min-width: 190px;
+  height: 38px;
+}
+.group-field .muted.small {
+  max-width: 42ch;
+}
+.control-row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 8px 12px;
-  margin-top: 8px;
+  gap: 8px;
 }
 .serial-edit .tx-input {
   width: 200px;
+  height: 38px;
 }
-.serial-edit .muted {
-  flex-basis: 100%;
+.serial-edit .control-row button {
+  height: 38px;
 }
 ol.outline {
   margin: 8px 0;

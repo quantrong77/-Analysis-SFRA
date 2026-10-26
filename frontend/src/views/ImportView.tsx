@@ -210,19 +210,21 @@ function SerialEdit({ g, files, others, onApply }: { g: TransformerGroup; files:
   const merge = others.includes(next);
   return (
     <form
-      className="serial-edit"
+      className="group-field serial-edit"
       onSubmit={(e) => {
         e.preventDefault();
         if (next && next !== g.key) onApply(next);
       }}
     >
-      <label className="field">
-        <span>Số chế tạo</span>
-        <input className="tx-input" list="tx-keys" value={value} onChange={(e) => setValue(e.target.value)} />
-      </label>
-      <button type="submit" disabled={!next || next === g.key}>
-        {merge ? "Gộp vào máy này" : "Đổi số chế tạo"}
-      </button>
+      <div className="control-row">
+        <label className="field">
+          <span>Số chế tạo</span>
+          <input className="tx-input" list="tx-keys" value={value} onChange={(e) => setValue(e.target.value)} />
+        </label>
+        <button type="submit" disabled={!next || next === g.key}>
+          {merge ? "Gộp vào máy này" : "Đổi số chế tạo"}
+        </button>
+      </div>
       {edited.length > 0 && (
         <span className="muted small">
           Đã sửa, trong file ghi {edited.join(", ")}.{" "}
@@ -420,75 +422,72 @@ export default function ImportView(p: Props) {
         const unpaired = g.rows.filter((r) => !(r.baselineId && r.testId));
         return (
           <section key={g.key} className="panel">
-            <div className="row between wrap">
-              <div>
-                <h2>Máy biến áp {g.key}</h2>
-                <p className="muted">
-                  {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
-                </p>
-                <SerialEdit
-                  key={g.key}
-                  g={g}
-                  files={list}
-                  others={p.groups.map((x) => x.key).filter((k) => k !== g.key)}
-                  onApply={(k) => p.onSetTransformer([...new Set(list.map((t) => t.sha256))], k, g.key)}
+            <h2>Máy biến áp {g.key}</h2>
+            <p className="muted">
+              {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
+            </p>
+            {/* identity and the two sessions compared, label above each field; actions on the row below */}
+            <div className="group-fields">
+              <SerialEdit
+                key={g.key}
+                g={g}
+                files={list}
+                others={p.groups.map((x) => x.key).filter((k) => k !== g.key)}
+                onApply={(k) => p.onSetTransformer([...new Set(list.map((t) => t.sha256))], k, g.key)}
+              />
+              <div className="group-field">
+                <label className="field">
+                  <span>Baseline (kỳ cơ sở)</span>
+                  <select
+                    value={g.baselineSession}
+                    onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
+                  >
+                    {g.sessions.map((s) => (
+                      <option key={s} value={s}>
+                        {sessionLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <SessionDateEdit
+                  key={`b${g.baselineSession}`}
+                  session={g.baselineSession}
+                  files={list.filter((t) => dayKey(t.testDate) === g.baselineSession)}
+                  onSetDate={p.onSetDates}
                 />
               </div>
-              <div className="row gap wrap">
-                <div className="session-pick">
-                  <label>
-                    Baseline{" "}
-                    <select
-                      value={g.baselineSession}
-                      onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
-                    >
-                      {g.sessions.map((s) => (
-                        <option key={s} value={s}>
-                          {sessionLabel(s)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              <div className="group-field">
+                <label className="field">
+                  <span>Lần đo cần đánh giá</span>
+                  <select
+                    value={g.testSession}
+                    onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
+                  >
+                    {g.sessions.map((s) => (
+                      <option key={s} value={s}>
+                        {sessionLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {g.testSession !== g.baselineSession && (
                   <SessionDateEdit
-                    key={`b${g.baselineSession}`}
-                    session={g.baselineSession}
-                    files={list.filter((t) => dayKey(t.testDate) === g.baselineSession)}
+                    key={`t${g.testSession}`}
+                    session={g.testSession}
+                    files={list.filter((t) => dayKey(t.testDate) === g.testSession)}
                     onSetDate={p.onSetDates}
                   />
-                </div>
-                <div className="session-pick">
-                  <label>
-                    Lần đo{" "}
-                    <select
-                      value={g.testSession}
-                      onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
-                    >
-                      {g.sessions.map((s) => (
-                        <option key={s} value={s}>
-                          {sessionLabel(s)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {g.testSession !== g.baselineSession && (
-                    <SessionDateEdit
-                      key={`t${g.testSession}`}
-                      session={g.testSession}
-                      files={list.filter((t) => dayKey(t.testDate) === g.testSession)}
-                      onSetDate={p.onSetDates}
-                    />
-                  )}
-                </div>
-                <button className="primary" disabled={!paired} onClick={() => p.onAnalyze(g.key)}>
-                  Xác nhận và tính ({paired} cặp)
-                </button>
+                )}
               </div>
             </div>
             <div className="group-actions">
+              <button className="primary" disabled={!paired} onClick={() => p.onAnalyze(g.key)}>
+                Xác nhận và tính ({paired} cặp)
+              </button>
               <button onClick={() => p.onSaveGroup(g.key)} disabled={p.busy}>
                 Lưu nhóm (.zip)
               </button>
-              <button className="link danger" onClick={() => p.onDeleteGroup(g.key)} disabled={p.busy}>
+              <button className="danger push-end" onClick={() => p.onDeleteGroup(g.key)} disabled={p.busy}>
                 Xóa nhóm
               </button>
             </div>
