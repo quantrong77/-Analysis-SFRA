@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { RangeIndices } from "../core/analysis";
-import { peakStatusLabel, type PeakAnalysis } from "../core/peaks";
-import { fmtHz } from "../core/quality";
+import { peakCounts, peakStatusLabel, type PeakAnalysis } from "../core/peaks";
+import { fmtHz, fmtHzShort } from "../core/quality";
 import { fmtNum } from "../core/rules";
 import type { Standards } from "../core/standards";
 import { InternalTag } from "./common";
@@ -62,8 +62,20 @@ export function Tb812Table({ ranges, std, showRxy }: { ranges: RangeIndices[]; s
 /** Matched resonance peaks / notches with frequency shift (spec 6.4). */
 export function PeakTable({ pa, std, refLabel = "Baseline", testLabel = "Lần đo" }: { pa: PeakAnalysis; std: Standards; refLabel?: string; testLabel?: string }) {
   const [all, setAll] = useState(false);
+  const [only, setOnly] = useState<"all" | "new" | "lost">("all");
   const notable = pa.matches.filter((m) => m.status !== "ok");
-  const rows = all ? pa.matches : pa.matches.filter((m) => m.status !== "ok" || m.band === "LF" || m.band === "MF" || m.band === "HF");
+  const inBands = (b: string) => b in std.dlt911.bands;
+  const rows = (all ? pa.matches : pa.matches.filter((m) => m.status !== "ok" || inBands(m.band))).filter(
+    (m) => only === "all" || m.status === only,
+  );
+  const counts = peakCounts(pa, std);
+  const inside = counts.filter((c) => c.band !== "outside");
+  const sum = (k: "peaksNew" | "peaksLost" | "notchesNew" | "notchesLost") => inside.reduce((s, c) => s + c[k], 0);
+  const bandNames = Object.keys(std.dlt911.bands);
+  const first = std.dlt911.bands[bandNames[0]];
+  const last = std.dlt911.bands[bandNames[bandNames.length - 1]];
+  const range = `${fmtHzShort(first.f_min)} – ${fmtHzShort(last.f_max)}`;
+  const cell = (n: number) => <td className={`num${n ? " pk-count-on" : ""}`}>{n}</td>;
   const th = std.peaks.shift_thresholds_percent;
   const maxShift = pa.matches.reduce((m, x) => (x.shiftPercent !== null && Math.abs(x.shiftPercent) > Math.abs(m) ? x.shiftPercent : m), 0);
   return (
@@ -74,6 +86,69 @@ export function PeakTable({ pa, std, refLabel = "Baseline", testLabel = "Lần �
         {pa.matches.filter((m) => m.ref && m.test).length} cặp ghép được; dịch lớn nhất {fmtNum(maxShift, std, 2)} %;{" "}
         {notable.length} mục cần chú ý. Ngưỡng dịch {th.warning} % / {th.alarm} %: <InternalTag />
       </p>
+      <div className="peak-tiles">
+        {[
+          { label: "Đỉnh cộng hưởng mới", n: sum("peaksNew") },
+          { label: "Đỉnh cộng hưởng mất", n: sum("peaksLost") },
+          { label: "Hố (phản cộng hưởng) mới", n: sum("notchesNew") },
+          { label: "Hố (phản cộng hưởng) mất", n: sum("notchesLost") },
+        ].map((t) => (
+          <div key={t.label} className={`peak-tile${t.n ? " on" : ""}`}>
+            <span className="peak-tile-n">{t.n}</span>
+            <span>{t.label}</span>
+          </div>
+        ))}
+      </div>
+      <p className="muted small">
+        Đếm trong dải {range}. Mới: có ở {testLabel.toLowerCase()}, không ghép được với {refLabel.toLowerCase()}. Mất: có ở{" "}
+        {refLabel.toLowerCase()}, không còn ở {testLabel.toLowerCase()}.
+      </p>
+      <div className="table-wrap">
+        <table className="grid small peak-counts">
+          <thead>
+            <tr>
+              <th>Dải</th>
+              <th className="num">Đỉnh mới</th>
+              <th className="num">Đỉnh mất</th>
+              <th className="num">Hố mới</th>
+              <th className="num">Hố mất</th>
+            </tr>
+          </thead>
+          <tbody>
+            {counts.map((c) => (
+              <tr key={c.band} className={c.band === "outside" ? "muted" : ""}>
+                <td>
+                  {c.band === "outside"
+                    ? `Ngoài ${range}`
+                    : `${c.band} (${fmtHzShort(std.dlt911.bands[c.band].f_min)} – ${fmtHzShort(std.dlt911.bands[c.band].f_max)})`}
+                </td>
+                {cell(c.peaksNew)}
+                {cell(c.peaksLost)}
+                {cell(c.notchesNew)}
+                {cell(c.notchesLost)}
+              </tr>
+            ))}
+            <tr className="total">
+              <td>Tổng trong {range}</td>
+              {cell(sum("peaksNew"))}
+              {cell(sum("peaksLost"))}
+              {cell(sum("notchesNew"))}
+              {cell(sum("notchesLost"))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="row between wrap">
+        <h3>Danh sách cực trị</h3>
+        <div className="chips">
+          {([["all", "Tất cả"], ["new", "Chỉ mới"], ["lost", "Chỉ mất"]] as const).map(([id, label]) => (
+            <button key={id} className={only === id ? "chip on" : "chip"} onClick={() => setOnly(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="table-wrap">
         <table className="grid mono small">
           <thead>

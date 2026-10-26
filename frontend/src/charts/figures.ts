@@ -24,12 +24,22 @@ const sessionLabel = (t: Trace) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "?";
 };
 
-const ZONE_FILL: Record<string, string> = {
-  core: "rgba(143,106,0,0.08)",
-  interaction: "rgba(94,71,148,0.08)",
-  winding: "rgba(30,78,121,0.07)",
-  leads: "rgba(89,99,110,0.12)",
+// typical-influence zones: [r, g, b, alpha], strong enough to read as regions behind the curves
+const ZONE_RGBA: Record<string, [number, number, number, number]> = {
+  core: [201, 156, 52, 0.22],
+  interaction: [124, 98, 184, 0.2],
+  winding: [52, 120, 170, 0.15],
+  leads: [110, 120, 132, 0.26],
 };
+/** Fill colour of a typical-influence zone, for keys drawn outside the chart */
+export const zoneFill = (key: string): string => rgba(ZONE_RGBA[key] ?? [0, 0, 0, 0.05]);
+const rgba = ([r, g, b, a]: [number, number, number, number]) => `rgba(${r},${g},${b},${a.toFixed(3)})`;
+const mix = (a: [number, number, number, number], b: [number, number, number, number], t: number) =>
+  a.map((v, i) => v + (b[i] - v) * t) as [number, number, number, number];
+/** Half width of the blend between two neighbouring zones: decades on a log axis, share of the span on a linear one */
+const BLEND_LOG = 0.12;
+const BLEND_LIN = 0.015;
+const BLEND_STEPS = 8;
 
 /** What is drawn behind the curves: DL/T 911 bands, IEC 60076-18 zones, or nothing. */
 export type Backdrop = "dlt911" | "iec" | "none";
@@ -39,6 +49,8 @@ export interface PlotOptions {
   backdrop?: Backdrop;
   /** Text and colour written in each DL/T 911 band, e.g. the band's Rxy */
   bandLabels?: Record<string, { text: string; color: string }>;
+  /** Paper heights (0 bottom, 1 top) where region labels are written; one per stacked plot */
+  labelRows?: number[];
 }
 
 interface Region {
@@ -47,6 +59,7 @@ interface Region {
   lo: number;
   hi: number;
   fill: string;
+  rgba?: [number, number, number, number];
 }
 
 // IEC zones run from 0 Hz to infinity: clip them to the measured range so they can be drawn on a log axis.
@@ -59,7 +72,10 @@ function regions(std: Standards, opt: PlotOptions, fLo: number, fHi: number): Re
   }
   if (backdrop === "iec") {
     return Object.entries(std.iec_zones.zones as Record<string, { label: string; f_min: number; f_max: number }>)
-      .map(([k, z]) => ({ key: k, label: z.label, lo: Math.max(z.f_min, fLo), hi: Math.min(z.f_max, fHi), fill: ZONE_FILL[k] ?? "rgba(0,0,0,0.04)" }))
+      .map(([k, z]) => {
+        const c = ZONE_RGBA[k] ?? ([0, 0, 0, 0.05] as [number, number, number, number]);
+        return { key: k, label: z.label, lo: Math.max(z.f_min, fLo), hi: Math.min(z.f_max, fHi), fill: rgba(c), rgba: c };
+      })
       .filter((z) => z.hi > z.lo);
   }
   return [];
@@ -72,15 +88,44 @@ function backdrop(std: Standards, opt: PlotOptions, fLo: number, fHi: number) {
   const pos = (f: number) => (log ? Math.log10(f) : f);
   // an IEC zone label wider than its zone would run into the next one; DL/T band labels carry Rxy and always show
   const wide = (z: Region) => opt.backdrop !== "iec" || (pos(z.hi) - pos(z.lo)) / (pos(fHi) - pos(fLo)) >= 0.06;
+  const from = (v: number) => (log ? 10 ** v : v);
+  const rect = (x0: number, x1: number, fill: string) => ({
+    type: "rect", xref: "x", yref: "paper", x0, x1, y0: 0, y1: 1, fillcolor: fill, line: { width: 0 }, layer: "below",
+  });
+  const shapes: Record<string, unknown>[] = [];
+  if (opt.backdrop === "iec") {
+    // zones fade into each other over a short stretch around each boundary instead of a hard edge
+    const half = log ? BLEND_LOG : BLEND_LIN * (fHi - fLo);
+    list.forEach((z, i) => {
+      const prev = list[i - 1];
+      const next = list[i + 1];
+      const lo = prev ? Math.min(pos(z.lo) + half, (pos(z.lo) + pos(z.hi)) / 2) : pos(z.lo);
+      const hi = next ? Math.max(pos(z.hi) - half, (pos(z.lo) + pos(z.hi)) / 2) : pos(z.hi);
+      shapes.push(rect(from(lo), from(hi), z.fill));
+      if (next && z.rgba && next.rgba) {
+        const b = pos(z.hi);
+        const end = Math.min(b + half, (pos(next.lo) + pos(next.hi)) / 2);
+        for (let k = 0; k < BLEND_STEPS; k++) {
+          const a = hi + ((end - hi) * k) / BLEND_STEPS;
+          const c = hi + ((end - hi) * (k + 1)) / BLEND_STEPS;
+          shapes.push(rect(from(a), from(c), rgba(mix(z.rgba, next.rgba, (k + 0.5) / BLEND_STEPS))));
+        }
+      }
+    });
+  } else {
+    for (const z of list) shapes.push(rect(z.lo, z.hi, z.fill));
+  }
+  const rows = opt.labelRows ?? [0.995];
   return {
-    shapes: list.map((z) => ({
-      type: "rect", xref: "x", yref: "paper", x0: z.lo, x1: z.hi, y0: 0, y1: 1, fillcolor: z.fill, line: { width: 0 }, layer: "below",
-    })),
-    annotations: list.filter(wide).map((z) => ({
-      xref: "x", yref: "paper", x: log ? (Math.log10(z.lo) + Math.log10(z.hi)) / 2 : (z.lo + z.hi) / 2, y: 0.995, yanchor: "top",
-      text: z.label, showarrow: false,
-      font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? "#6a7682" },
-    })),
+    shapes,
+    annotations: rows.flatMap((y) =>
+      list.filter(wide).map((z) => ({
+        xref: "x", yref: "paper", x: log ? (Math.log10(z.lo) + Math.log10(z.hi)) / 2 : (z.lo + z.hi) / 2, y, yanchor: "top",
+        text: z.label, showarrow: false,
+        font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? (opt.backdrop === "iec" ? "#2f3b47" : "#6a7682") },
+        ...(opt.backdrop === "iec" ? { bgcolor: "rgba(255,255,255,0.72)", borderpad: 2 } : {}),
+      })),
+    ),
   };
 }
 
@@ -147,7 +192,7 @@ export function bodeFigure(
       xaxis: { ...xAxisOf(opt), anchor: "y2" },
       yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb", domain: [0.53, 1] },
       yaxis2: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 90, gridcolor: "#e3e7eb", domain: [0, 0.45] },
-      ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
+      ...backdrop(std, { ...opt, labelRows: opt.labelRows ?? (opt.backdrop === "iec" ? [0.995, 0.445] : [0.995]) }, ...span([r.baseline, r.test, ...extras])),
     },
   };
 }

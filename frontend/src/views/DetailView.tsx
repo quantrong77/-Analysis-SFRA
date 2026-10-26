@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type PlotOptions } from "../charts/figures";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
+import PlotTools from "../components/PlotTools";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
 import { bandLevel, levelConditions } from "../core/dlt911";
 import { dayKey, measurementConfig, type PairRow, type TransformerGroup } from "../core/pairing";
-import { fmtHz } from "../core/quality";
+import { fmtHz, fmtHzShort } from "../core/quality";
 import { fmtNum } from "../core/rules";
 import type { Standards } from "../core/standards";
 import type { Trace } from "../core/types";
@@ -23,12 +24,6 @@ interface Props {
   onPick: (rowKey: string, field: "baselineId" | "testId", id: string) => void;
 }
 
-const BACKDROPS: { id: Backdrop; label: string }[] = [
-  { id: "dlt911", label: "Dải DL/T 911" },
-  { id: "iec", label: "Vùng IEC 60076-18" },
-  { id: "none", label: "Không" },
-];
-
 // verdict colours come from the stylesheet tokens (--v-normal, ...), so the chart matches the tables
 const levelColor = (id: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(`--v-${id}`).trim() || "#44515e";
@@ -41,10 +36,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "peaks", label: "Đỉnh cộng hưởng" },
   { id: "tb812", label: "Chỉ số CIGRE TB 812" },
 ];
-
-// band edges are round numbers: "1 kHz", "600 kHz", "1 MHz"
-const bandHz = (f: number) =>
-  (f >= 1e6 ? `${f / 1e6} MHz` : f >= 1e3 ? `${f / 1e3} kHz` : `${f} Hz`).replace(".", ",");
 
 const shortName = (t: Trace) => `${sessionLabel(dayKey(t.testDate))} ${t.label}`;
 
@@ -139,34 +130,17 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       <section className="tab-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "compare" && (
           <>
-            <div className="plot-tools" role="toolbar" aria-label="Tùy chọn giản đồ">
-              <div className="seg" role="radiogroup" aria-label="Nền giản đồ">
-                <span className="seg-label">Nền</span>
-                {BACKDROPS.map((b) => (
-                  <button key={b.id} role="radio" aria-checked={backdrop === b.id} className={backdrop === b.id ? "on" : ""} onClick={() => setBackdrop(b.id)}>
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-              <div className="seg" role="radiogroup" aria-label="Trục tần số">
-                <span className="seg-label">Trục tần số</span>
-                {(["log", "linear"] as const).map((s) => (
-                  <button key={s} role="radio" aria-checked={scale === s} className={scale === s ? "on" : ""} onClick={() => setScale(s)}>
-                    {s === "log" ? "Log" : "Tuyến tính"}
-                  </button>
-                ))}
-              </div>
-              <label className="check small">
-                <input type="checkbox" checked={showPeaks} onChange={(e) => setShowPeaks(e.target.checked)} /> Đỉnh/hố
-              </label>
-              <button onClick={() => setFit((n) => n + 1)}>Vừa khung</button>
-            </div>
-            <p className="muted small">
-              Biên độ (trên) và góc pha (dưới) chung trục tần số: kéo chọn một vùng để phóng to cả hai.{" "}
-              {backdrop === "dlt911" && <>Nền: dải LF, MF, HF, ghi Rxy tô màu theo mức Bảng A.1. Căn cứ: {std.dlt911.source}.</>}
-              {backdrop === "iec" && <>Nền: vùng ảnh hưởng điển hình. Căn cứ: {std.iec_zones.source}; {std.iec_zones.note}.</>}
-              {showPeaks && <> Đỉnh/hố: ▲ đỉnh, ▼ hố; ký hiệu lớn là dịch ≥ ngưỡng, mất hoặc mới.</>}
-            </p>
+            <PlotTools
+              std={std}
+              backdrop={backdrop}
+              onBackdrop={setBackdrop}
+              scale={scale}
+              onScale={setScale}
+              showPeaks={showPeaks}
+              onShowPeaks={setShowPeaks}
+              onFit={() => setFit((n) => n + 1)}
+            />
+            {backdrop === "dlt911" && <p className="muted small">Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1.</p>}
             <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} />
             <h3>Hiệu số biên độ ΔdB</h3>
             <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} />
@@ -309,7 +283,7 @@ function Dlt911Tab({ r, std }: { r: PairResult; std: Standards }) {
               <div className="band-tile-head">
                 <strong>R{b.band}</strong>
                 <span>
-                  {bandHz(b.f_min)} – {bandHz(b.f_max)}
+                  {fmtHzShort(b.f_min)} – {fmtHzShort(b.f_max)}
                 </span>
               </div>
               <div className="band-tile-value">{fmtNum(b.rxy, std, 3)}</div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { diffFigure, magnitudeFigure, peakMarkers, phaseFigure, type CurveNames } from "../charts/figures";
+import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type CurveNames, type PlotOptions } from "../charts/figures";
 import Plot from "../components/Plot";
+import PlotTools from "../components/PlotTools";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import { bankTraces, compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
 import { dayKey, measurementConfig, type TransformerGroup } from "../core/pairing";
@@ -21,11 +22,15 @@ const traceName = (t: Trace) => `${t.index !== null ? `${t.index} ` : ""}${t.lab
 const phaseName = (t: Trace) => phasePattern(t.label)?.phase ?? t.label;
 
 function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards; names: CurveNames }) {
+  const [backdrop, setBackdrop] = useState<Backdrop>("iec");
+  const [scale, setScale] = useState<"log" | "linear">("log");
+  const [showPeaks, setShowPeaks] = useState(true);
+  const [fit, setFit] = useState(0);
   const figs = useMemo(() => {
-    const mag = magnitudeFigure({ baseline: c.a, test: c.b }, std, [], names);
-    mag.data = [...mag.data, ...peakMarkers(c.peaks, names)];
-    return { mag, phase: phaseFigure({ baseline: c.a, test: c.b }, std, [], names), diff: diffFigure(c, std) };
-  }, [c, std, names]);
+    const opt: PlotOptions = { backdrop, scale };
+    const markers = showPeaks ? peakMarkers(c.peaks, names) : [];
+    return { bode: bodeFigure({ baseline: c.a, test: c.b }, std, [], names, markers, opt), diff: diffFigure(c, std, opt) };
+  }, [c, std, names, backdrop, scale, showPeaks]);
   return (
     <section className="panel">
       <div className="row between wrap">
@@ -46,12 +51,19 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
         </div>
         <div>Chế độ căn lưới: {c.aligned.modeLabel}</div>
       </div>
-      <h3>Biên độ</h3>
-      <Plot data={figs.mag.data} layout={figs.mag.layout} height={360} />
-      <h3>Góc pha</h3>
-      <Plot data={figs.phase.data} layout={figs.phase.layout} height={300} />
+      <PlotTools
+        std={std}
+        backdrop={backdrop}
+        onBackdrop={setBackdrop}
+        scale={scale}
+        onScale={setScale}
+        showPeaks={showPeaks}
+        onShowPeaks={setShowPeaks}
+        onFit={() => setFit((n) => n + 1)}
+      />
+      <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} />
       <h3>Hiệu số ΔdB (đường 2 − đường 1)</h3>
-      <Plot data={figs.diff.data} layout={figs.diff.layout} height={240} />
+      <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} />
       <h3>Rxy và chỉ số TB 812 theo dải DL/T 911 (không phân loại)</h3>
       <Tb812Table ranges={c.bands} std={std} showRxy />
       <h3>Theo vùng IEC 60076-18</h3>

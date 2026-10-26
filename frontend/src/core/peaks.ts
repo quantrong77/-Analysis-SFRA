@@ -150,3 +150,23 @@ export function peakStatusLabel(s: MatchStatus, std: Standards): string {
   const th = std.peaks.shift_thresholds_percent;
   return (std.peaks.labels[s] as string).replace("{warning}", String(th.warning)).replace("{alarm}", String(th.alarm));
 }
+
+export interface PeakCount {
+  /** DL/T 911 band key, or "outside" for extrema outside the bands */
+  band: string;
+  peaksNew: number;
+  peaksLost: number;
+  notchesNew: number;
+  notchesLost: number;
+}
+
+/** New and lost peaks / notches per DL/T 911 band, then outside the bands. */
+export function peakCounts(pa: PeakAnalysis, std: Standards): PeakCount[] {
+  const bands = [...Object.keys(std.dlt911.bands), "outside"];
+  const of = (m: PeakMatch) => (bands.includes(m.band) ? m.band : "outside");
+  return bands.map((band) => {
+    const ms = pa.matches.filter((m) => of(m) === band);
+    const n = (kind: PeakMatch["kind"], status: MatchStatus) => ms.filter((m) => m.kind === kind && m.status === status).length;
+    return { band, peaksNew: n("peak", "new"), peaksLost: n("peak", "lost"), notchesNew: n("notch", "new"), notchesLost: n("notch", "lost") };
+  });
+}

@@ -11,6 +11,10 @@ export interface QualityWarning {
 }
 
 /** Frequency with unit, Vietnamese decimal comma (e.g. "1,989 MHz"). */
+/** Round band edges without trailing zeros: "1 kHz", "600 kHz", "1 MHz". */
+export const fmtHzShort = (f: number): string =>
+  (f >= 1e6 ? `${f / 1e6} MHz` : f >= 1e3 ? `${f / 1e3} kHz` : `${f} Hz`).replace(".", ",");
+
 export function fmtHz(f: number): string {
   const s = f >= 1e6 ? `${(f / 1e6).toFixed(3)} MHz` : f >= 1e3 ? `${(f / 1e3).toFixed(3)} kHz` : `${f.toFixed(3)} Hz`;
   return s.replace(".", ",");

@@ -31,6 +31,10 @@ resample:
 
 # -----------------------------------------------------------------------------
 # DL/T 911-2004, Phụ lục A: hệ số tương quan Rxy (chỉ số chính để kết luận)
+# A.2 trong bản dịch tiếng Anh in dấu bình phương trên từng ngoặc; Cxy là hiệp phương sai
+# (dạng tích), dạng duy nhất cho LRxy = Cxy/sqrt(Dx*Dy) trong [-1, 1] như A.4 yêu cầu.
+# DL/T 911-2004 đã được thay bằng DL/T 911-2016; ngưỡng Bảng A.1 dưới đây là của bản 2004,
+# chưa đối chiếu với văn bản bản 2016.
 # -----------------------------------------------------------------------------
 dlt911:
   source: "DL/T 911-2004, Phụ lục A, A.1–A.4"
@@ -44,7 +48,7 @@ dlt911:
       include_min: true
       include_max: true
       threshold: 2.0
-      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (1 kHz ~ 100 kHz); cận biên theo Excel v6"
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (1 kHz ~ 100 kHz); tiêu chuẩn không quy định điểm biên thuộc dải nào, ứng dụng quy ước mỗi điểm chỉ thuộc một dải (cấu hình bằng include_min / include_max)"
     MF:
       label: "Tần số trung bình (MF)"
       f_min: 100000.0
@@ -52,7 +56,7 @@ dlt911:
       include_min: false
       include_max: true
       threshold: 1.0
-      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (100 kHz ~ 600 kHz); cận biên theo Excel v6"
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (100 kHz ~ 600 kHz); tiêu chuẩn không quy định điểm biên thuộc dải nào, ứng dụng quy ước mỗi điểm chỉ thuộc một dải (cấu hình bằng include_min / include_max)"
     HF:
       label: "Tần số cao (HF)"
       f_min: 600000.0
@@ -60,7 +64,7 @@ dlt911:
       include_min: false
       include_max: true
       threshold: 0.6
-      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (600 kHz ~ 1000 kHz); cận biên theo Excel v6"
+      source: "DL/T 911-2004, Phụ lục A, Bảng A.1, ghi chú (600 kHz ~ 1000 kHz); tiêu chuẩn không quy định điểm biên thuộc dải nào, ứng dụng quy ước mỗi điểm chỉ thuộc một dải (cấu hình bằng include_min / include_max)"
 
   # Xét theo thứ tự từ nặng đến nhẹ, gặp điều kiện đầu tiên thì dừng.
   # `any`: danh sách mệnh đề, đúng khi một mệnh đề đúng; mỗi mệnh đề đúng khi mọi điều kiện đúng.
