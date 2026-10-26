@@ -4,10 +4,11 @@ import { decodeBytes } from "./common";
 import { parseDobleSfra, sniffDobleSfra } from "./dobleSfra";
 import { parseFrax, sniffFrax } from "./frax";
 import { parseFraV2, sniffFraV2 } from "./fraV2Csv";
+import { parseFraxCsv, sniffFraxCsv } from "./fraxCsv";
 import { looksLikeCsv, NeedsMappingError, parseGenericCsv, signatureOf, sniffGenericCsv, type CsvProfile } from "./genericCsv";
 
 /**
- * Parse one file into one or more traces (FRAX files hold several sweeps).
+ * Parse one file into one or more traces (FRAX .frax and FRAX .csv files hold several sweeps).
  * Generic CSV: a saved profile with the same header wins; otherwise a confident auto-detection
  * is used; otherwise NeedsMappingError asks the user to map the columns.
  */
@@ -19,6 +20,7 @@ export async function parseFile(
   if (!forced) {
     if (sniffFraV2(head)) return [parseFraV2(bytes, filename, sha)];
     if (sniffDobleSfra(head)) return [parseDobleSfra(bytes, filename, sha)];
+    if (sniffFraxCsv(head)) return parseFraxCsv(bytes, filename, sha);
     if (sniffFrax(head)) {
       const fx = std.vendors?.frax ?? {};
       const notes = fx.phase_confirmed ? [] : [`Định dạng FRAX: góc pha = ${fx.phase_deg} chưa đối chiếu với phần mềm FRAX.`];
@@ -39,7 +41,7 @@ export async function parseFile(
     }
     throw new NeedsMappingError(sn, bytes, filename);
   }
-  throw new ParseError("Không nhận dạng được định dạng file (hỗ trợ: FRA Data v2.0 .csv, Doble .sfra, Megger .frax, CSV khác)");
+  throw new ParseError("Không nhận dạng được định dạng file (hỗ trợ: FRA Data v2.0 .csv, Doble .sfra, Megger FRAX .frax và .csv, CSV khác)");
 }
 
 export { parseFilename } from "./common";

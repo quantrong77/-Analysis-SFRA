@@ -689,6 +689,11 @@ table.grid .badge.trend-stable::before {
   background: currentColor;
   vertical-align: 1px;
 }
+/* file names break at their separators, not letter by letter */
+.cell-file {
+  min-width: 26ch;
+  max-width: 42ch;
+}
 .cell-place {
   min-width: 24ch;
 }

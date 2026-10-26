@@ -301,7 +301,16 @@ vendors:
     magnitude_check: "Đã đối chiếu với phần mềm FRAX tại một điểm đo của file mẫu (25/10/2026); cách đọc cũ 20·log10(c3/c2) sai và đã bỏ."
     phase_confirmed: true
     phase_check: "Đã đối chiếu với phần mềm FRAX tại một điểm đo của file mẫu (25/10/2026)."
+    # 26/10/2026: file CSV do phần mềm FRAX xuất từ cùng lần đo trùng với cách đọc này ở mọi điểm của
+    # sweep có trong CSV (1051 điểm, sai lệch 0 dB và 0°).
+    full_sweep_check: "Trùng với file CSV do phần mềm FRAX xuất cho cùng lần đo, ở mọi điểm của sweep đối chiếu (26/10/2026)"
     source: "File .frax mẫu của đơn vị, đối chiếu biên độ và góc pha với phần mềm FRAX; chưa có tài liệu hãng"
+  frax_csv:
+    label: "Megger FRAX (.csv)"
+    # Mục [Traces] liệt kê các sweep; mục [Data] gồm Index;Frequency;Magnitude;Phase, Index chỉ sweep.
+    magnitude: "dB (cột Magnitude)"
+    phase: "độ (cột Phase)"
+    source: "File CSV mẫu của đơn vị xuất từ phần mềm FRAX 5.11; đơn vị dB và độ xác nhận bằng cách đối chiếu từng điểm với file .frax cùng lần đo (26/10/2026); chưa có tài liệu hãng"
   doble_sfra:
     label: "Doble SFRA (.sfra, XML)"
     point_format: "<d>f,biên độ dB,góc pha độ</d>"

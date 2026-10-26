@@ -344,7 +344,7 @@ export default function ImportView(p: Props) {
       <h1>Nhập dữ liệu</h1>
       <p className="muted">
         File được đọc và tính toán ngay trong trình duyệt, không tải lên máy chủ. Hỗ trợ: FRA Data v2.0 (.csv), Doble
-        SFRA (.sfra), Megger FRAX (.frax).
+        SFRA (.sfra), Megger FRAX (.frax và .csv, nhiều phép đo trong một file).
       </p>
 
       <div
@@ -632,27 +632,25 @@ export default function ImportView(p: Props) {
                       <th>Định dạng</th>
                       <th>Đường đo</th>
                       <th>Ngày đo</th>
-                      <th>Nguồn ngày</th>
                       <th>MBA</th>
                       <th>Phép đo (STT, ký hiệu, cấu hình)</th>
                       <th>Đầu đo</th>
-                      <th>Ghi chú</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.map((t) => (
                       <tr key={t.id}>
-                        <td>
+                        <td className="cell-file">
                           <code>{t.sourceName}</code>
+                          {t.parseNotes.length > 0 && <div className="muted small">{t.parseNotes.join(" ")}</div>}
                         </td>
-                        <td>{t.formatLabel}</td>
+                        <td className="nowrap">{t.formatLabel}</td>
                         <td>{t.traceName}</td>
                         <td>
                           <DateTimeInput t={t} onSet={(d) => p.onSetDate([t.id], d)} />
-                          
+                          <div className="muted small">Nguồn: {t.dateSource || "chưa có"}</div>
                         </td>
-                        <td className="muted">{t.dateSource || "Chưa có"}</td>
                         <td>
                           <input
                             key={t.transformerKey}
@@ -671,7 +669,6 @@ export default function ImportView(p: Props) {
                         <td className="nowrap">
                           {t.setting.redLead || "–"} → {t.setting.blackLead || "–"}
                         </td>
-                        <td className="muted">{t.parseNotes.join(" ")}</td>
                         <td>
                           <button className="link" onClick={() => p.onRemove(t.id)}>
                             Bỏ
