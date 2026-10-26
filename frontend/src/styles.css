@@ -843,6 +843,49 @@ textarea.yaml-edit {
   border-top: 2px solid var(--rule-strong);
 }
 
+/* groups: add, save, open */
+.group-bar {
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  background: var(--plate);
+  border-radius: var(--radius);
+}
+.group-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 24px;
+}
+.group-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.group-add input {
+  width: 240px;
+  max-width: 100%;
+}
+.group-bar .muted {
+  margin: 8px 0 0;
+  max-width: 90ch;
+}
+.notice {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--v-normal);
+  background: var(--v-normal-bg);
+  color: var(--v-normal);
+}
+.group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
 /* chart toolbar: backdrop, axis, markers, reset */
 .plot-tools {
   display: flex;

@@ -23,7 +23,7 @@ interface Props {
   onOpen: (key: string) => void;
   onTrend: (key: string) => void;
   onBackup: () => void;
-  onRestore: (file: File) => void;
+  onRestore: (packages: File[]) => void;
 }
 
 export default function OverviewView(p: Props) {
@@ -142,10 +142,11 @@ export default function OverviewView(p: Props) {
             ref={restoreInput}
             type="file"
             accept=".zip"
+            multiple
             hidden
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) p.onRestore(f);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) p.onRestore(files);
               e.target.value = "";
             }}
           />

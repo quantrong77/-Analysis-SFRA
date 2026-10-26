@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { transformerConclusion } from "./core/rules";
 import { NeedsMappingError, parseFile, type CsvProfile } from "./core/parsers";
+import ErrorBoundary from "./components/ErrorBoundary";
 import type { PendingMapping } from "./components/CsvMapping";
 import { signatureOf } from "./core/parsers/genericCsv";
 import { measurementIdOf, sameMeasurementId, withMeasurementId, type TransformerGroup } from "./core/pairing";
@@ -18,7 +19,8 @@ import StandardsView from "./views/StandardsView";
 import TrendView from "./views/TrendView";
 import CompareView from "./views/CompareView";
 import { defaultInfo, type ReportInfo } from "./report/info";
-import { makeBackup, mergeWorkspace, readBackup } from "./storage/backup";
+import { makeBackup, mergeWorkspace, readBackup, workspaceFor, workspaceWithout } from "./storage/backup";
+import { canPickFolder, fileSafe, saveBlob, saveToFolder } from "./storage/saveFile";
 import { emptyWorkspace, requestPersistence, SfraStore, type StoredFile, type WorkspaceState } from "./storage/db";
 import { computeResults, regroup, setSessions, type LoadError } from "./workspace";
 import Nameplate from "./components/Nameplate";
@@ -67,6 +69,8 @@ export default function App() {
   const [ws, setWs] = useState<WorkspaceState>(emptyWorkspace());
   const [groups, setGroups] = useState<TransformerGroup[]>([]);
   const [errors, setErrors] = useState<LoadError[]>([]);
+  // outcome of the last save / import / delete, shown on the import screen
+  const [notice, setNotice] = useState("");
   const [pending, setPending] = useState<PendingMapping[]>([]);
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -225,8 +229,9 @@ export default function App() {
     [std, pending],
   );
 
+  /** Read files; with `groupKey` they all go to that transformer group (a new one or an existing one). */
   const onFiles = useCallback(
-    async (files: File[]) => {
+    async (files: File[], groupKey?: string) => {
       setBusy(true);
       const stored: StoredFile[] = [];
       for (const f of files) {
@@ -234,6 +239,12 @@ export default function App() {
         stored.push({ sha256: await sha256Hex(bytes), name: f.name, bytes, size: bytes.length, addedAt: new Date().toISOString() });
       }
       setErrors(await addStoredFiles(stored));
+      const key = groupKey?.trim();
+      if (key) {
+        setWs((w) => ({ ...w, txEdits: { ...w.txEdits, ...Object.fromEntries(stored.map((f) => [f.sha256, key])) } }));
+        setActiveGroup(key);
+        setNotice(`Đã thêm ${stored.length} file vào nhóm ${key}.`);
+      }
       setBusy(false);
     },
     [addStoredFiles],
@@ -276,34 +287,129 @@ export default function App() {
   }, [ws, std]);
 
   const onRestore = useCallback(
-    async (file: File) => {
+    async (packages: File[]) => {
       setBusy(true);
-      try {
-        const { files, workspace } = await readBackup(file);
-        const errs = await addStoredFiles(files);
-        setWs((w) => mergeWorkspace(w, workspace));
-        setGroups([]); // regroup with the restored session choices
-        setErrors(errs);
-      } catch (e) {
-        setErrors([{ file: file.name, message: (e as Error).message }]);
+      const errs: LoadError[] = [];
+      let fileCount = 0;
+      let opened = 0;
+      for (const file of packages) {
+        try {
+          const { files, workspace } = await readBackup(file);
+          errs.push(...(await addStoredFiles(files)));
+          setWs((w) => mergeWorkspace(w, workspace));
+          fileCount += files.length;
+          opened++;
+        } catch (e) {
+          errs.push({ file: file.name, message: (e as Error).message });
+        }
       }
+      setGroups([]); // regroup with the restored session choices
+      setErrors(errs);
+      setNotice(opened ? `Đã nhập ${opened} gói dữ liệu, ${fileCount} file đo.` : "");
       setBusy(false);
     },
     [addStoredFiles],
   );
 
+  const filesOfGroup = useCallback(
+    (key: string) => new Set(traces.filter((t) => t.transformerKey === key).map((t) => t.sha256)),
+    [traces],
+  );
+
+  /** One package (.zip) with the files and edits of some groups, in the backup format, so it can be imported again. */
+  const groupPackage = useCallback(
+    async (keys: string[]) => {
+      if (!store.current || !std) throw new Error("Bộ nhớ trình duyệt chưa sẵn sàng");
+      const shas = new Set(keys.flatMap((k) => [...filesOfGroup(k)]));
+      const files = (await store.current.listFiles()).filter((f) => shas.has(f.sha256));
+      return makeBackup(files, workspaceFor(ws, keys, shas), std.versionTag, keys);
+    },
+    [filesOfGroup, ws, std],
+  );
+
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const onSaveGroup = useCallback(
+    async (key: string) => {
+      setBusy(true);
+      try {
+        const name = `SFRA_${fileSafe(key)}_${today()}.zip`;
+        if (await saveBlob(await groupPackage([key]), name)) setNotice(`Đã lưu nhóm ${key} vào ${name}.`);
+      } catch (e) {
+        setErrors([{ file: key, message: `Không lưu được: ${(e as Error).message}` }]);
+      }
+      setBusy(false);
+    },
+    [groupPackage],
+  );
+
+  /** Every group: one package per group in a folder the user picks, or one package of all groups. */
+  const onSaveAll = useCallback(async () => {
+    const keys = groups.map((g) => g.key);
+    if (!keys.length) return;
+    setBusy(true);
+    try {
+      if (canPickFolder()) {
+        const dir = await saveToFolder(keys.map((k) => ({ name: `SFRA_${fileSafe(k)}_${today()}.zip`, blob: () => groupPackage([k]) })));
+        if (dir) setNotice(`Đã lưu ${keys.length} nhóm vào thư mục ${dir}, mỗi nhóm một file .zip.`);
+      } else {
+        const name = `SFRA_tat_ca_nhom_${today()}.zip`;
+        if (await saveBlob(await groupPackage(keys), name)) setNotice(`Đã lưu ${keys.length} nhóm vào ${name}.`);
+      }
+    } catch (e) {
+      setErrors([{ file: "Lưu tất cả nhóm", message: `Không lưu được: ${(e as Error).message}` }]);
+    }
+    setBusy(false);
+  }, [groups, groupPackage]);
+
+  const onDeleteGroup = useCallback(
+    async (key: string) => {
+      const shas = filesOfGroup(key);
+      if (!window.confirm(`Xóa nhóm ${key} cùng ${shas.size} file đo và các chỉnh sửa của nhóm khỏi trình duyệt này? Nên lưu nhóm trước khi xóa.`)) return;
+      for (const sha of shas) await store.current?.deleteFile(sha).catch(() => undefined);
+      setParsed((prev) => prev.filter((t) => !shas.has(t.sha256)));
+      setWs((w) => workspaceWithout(w, [key], shas));
+      setStorage((s) => ({ ...s, fileCount: Math.max(0, s.fileCount - shas.size) }));
+      if (activeGroup === key) setActiveGroup(null);
+      setNotice(`Đã xóa nhóm ${key}.`);
+    },
+    [filesOfGroup, activeGroup],
+  );
+
   const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
-  const group = groups.find((g) => g.key === activeGroup) ?? groups[0] ?? null;
+  // Groups are rebuilt in an effect after the traces change, one render later. Until then, drop
+  // files that are no longer loaded (just removed) so no screen looks up a file that is gone.
+  const live = useMemo(
+    () =>
+      groups
+        .filter((g) => traces.some((t) => t.transformerKey === g.key))
+        .map((g) => ({
+          ...g,
+          rows: g.rows
+            .map((r) => ({
+              ...r,
+              candidates: r.candidates.filter((id) => byId.has(id)),
+              baselineId: r.baselineId && byId.has(r.baselineId) ? r.baselineId : null,
+              testId: r.testId && byId.has(r.testId) ? r.testId : null,
+            }))
+            .filter((r) => r.candidates.length > 0),
+        })),
+    [groups, traces, byId],
+  );
+  const group = live.find((g) => g.key === activeGroup) ?? live[0] ?? null;
   const results = useMemo(() => (std && group ? computeResults(group, byId, std, mode) : []), [std, group, byId, mode]);
   const worst = useMemo(() => {
     const out: Record<string, Classification | null> = {};
     if (!std) return out;
-    for (const g of groups) {
+    for (const g of live) {
       const ok = computeResults(g, byId, std, mode).flatMap((r) => (r.result ? [r.result] : []));
       out[g.key] = ok.length ? transformerConclusion(ok, std).worst : null;
     }
     return out;
-  }, [groups, byId, std, mode]);
+  }, [live, byId, std, mode]);
   const traceCount = useMemo(() => {
     const out: Record<string, number> = {};
     for (const t of traces) out[t.transformerKey] = (out[t.transformerKey] ?? 0) + 1;
@@ -318,7 +424,7 @@ export default function App() {
   }
 
   const needsResults = (v: View) => v === "results" || v === "detail" || v === "report";
-  const disabled = (v: View) => (needsResults(v) && !results.some((r) => r.result)) || ((v === "trend" || v === "compare") && !groups.length);
+  const disabled = (v: View) => (needsResults(v) && !results.some((r) => r.result)) || ((v === "trend" || v === "compare") && !live.length);
   const info = group ? { ...defaultInfo(group, traces, std), ...ws.infoEdits[group.key] } : null;
   const setMode = (m: GridMode) => setWs((w) => ({ ...w, mode: m }));
 
@@ -349,11 +455,11 @@ export default function App() {
             </button>
           ))}
         </nav>
-        {groups.length > 0 && (
+        {live.length > 0 && (
           <label className="rail-tx">
             <span>Máy biến áp</span>
             <select value={group?.key} onChange={(e) => setActiveGroup(e.target.value)}>
-              {groups.map((g) => (
+              {live.map((g) => (
                 <option key={g.key} value={g.key}>
                   {g.key}
                 </option>
@@ -369,6 +475,8 @@ export default function App() {
       </aside>
 
       <main className="main">
+        {/* a new screen starts without the error of the previous one */}
+        <ErrorBoundary key={view} onHome={() => setView("overview")}>
         {showPlate && group && info && (
           <Nameplate
             group={group}
@@ -384,7 +492,7 @@ export default function App() {
         {view === "overview" && (
           <OverviewView
             std={std}
-            groups={groups}
+            groups={live}
             traces={traces}
             worst={worst}
             traceCount={traceCount}
@@ -409,7 +517,7 @@ export default function App() {
           <ImportView
             std={std}
             traces={traces}
-            groups={groups}
+            groups={live}
             errors={errors}
             busy={busy}
             onFiles={onFiles}
@@ -460,6 +568,11 @@ export default function App() {
               setActiveGroup(k);
               setView("compare");
             }}
+            onSaveGroup={onSaveGroup}
+            onSaveAll={onSaveAll}
+            onDeleteGroup={onDeleteGroup}
+            onRestore={onRestore}
+            notice={notice}
             onPlot={(k, row) => {
               setActiveGroup(k);
               setRowKey(row);
@@ -531,6 +644,7 @@ export default function App() {
             }}
           />
         )}
+        </ErrorBoundary>
       </main>
     </div>
   );

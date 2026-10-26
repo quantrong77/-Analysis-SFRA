@@ -10,14 +10,16 @@ interface Manifest {
   version: number;
   createdAt: string;
   rulesetVersion: string;
+  /** Transformer groups the backup holds; absent in a backup of the whole browser storage */
+  groups?: string[];
   files: { sha256: string; name: string; path: string; size: number; addedAt: string }[];
   workspace: WorkspaceState;
 }
 
-export async function makeBackup(files: StoredFile[], workspace: WorkspaceState, rulesetVersion: string): Promise<Blob> {
+export async function makeBackup(files: StoredFile[], workspace: WorkspaceState, rulesetVersion: string, groups?: string[]): Promise<Blob> {
   const zip = new JSZip();
   const manifest: Manifest = {
-    format: FORMAT, version: VERSION, createdAt: new Date().toISOString(), rulesetVersion, workspace,
+    format: FORMAT, version: VERSION, createdAt: new Date().toISOString(), rulesetVersion, workspace, ...(groups ? { groups } : {}),
     files: files.map((f) => ({
       sha256: f.sha256, name: f.name, size: f.size, addedAt: f.addedAt,
       path: `files/${f.sha256.slice(0, 12)}_${f.name}`,
@@ -55,5 +57,43 @@ export function mergeWorkspace(cur: WorkspaceState, inc: WorkspaceState): Worksp
     txEdits: { ...cur.txEdits, ...inc.txEdits },
     measurementEdits: { ...cur.measurementEdits, ...inc.measurementEdits },
     customRules: inc.customRules ?? cur.customRules,
+  };
+}
+
+/**
+ * The part of the workspace that belongs to some groups: edits of their files and traces, their
+ * session choices and report information. Column mappings travel along (files may need them);
+ * an edited ruleset does not, so importing a group never changes the other session's rules.
+ */
+export function workspaceFor(ws: WorkspaceState, groupKeys: string[], shas: Set<string>): WorkspaceState {
+  const ofFile = (traceId: string) => shas.has(traceId.split("#")[0]);
+  const pick = <T,>(rec: Record<string, T>, keep: (k: string) => boolean) => Object.fromEntries(Object.entries(rec).filter(([k]) => keep(k)));
+  const keys = new Set(groupKeys);
+  return {
+    ...emptyWorkspace(),
+    dateEdits: pick(ws.dateEdits, ofFile),
+    hidden: ws.hidden.filter(ofFile),
+    infoEdits: pick(ws.infoEdits, (k) => keys.has(k)),
+    sessions: pick(ws.sessions, (k) => keys.has(k)),
+    mode: ws.mode,
+    profiles: ws.profiles,
+    txEdits: pick(ws.txEdits, (k) => shas.has(k)),
+    measurementEdits: pick(ws.measurementEdits, ofFile),
+    customRules: null,
+  };
+}
+
+/** Workspace without the edits of the given files and groups (after a group is deleted). */
+export function workspaceWithout(ws: WorkspaceState, groupKeys: string[], shas: Set<string>): WorkspaceState {
+  const mine = workspaceFor(ws, groupKeys, shas);
+  const drop = <T,>(rec: Record<string, T>, gone: Record<string, unknown>) => Object.fromEntries(Object.entries(rec).filter(([k]) => !(k in gone)));
+  return {
+    ...ws,
+    dateEdits: drop(ws.dateEdits, mine.dateEdits),
+    hidden: ws.hidden.filter((h) => !mine.hidden.includes(h)),
+    infoEdits: drop(ws.infoEdits, mine.infoEdits),
+    sessions: drop(ws.sessions, mine.sessions),
+    txEdits: drop(ws.txEdits, mine.txEdits),
+    measurementEdits: drop(ws.measurementEdits, mine.measurementEdits),
   };
 }

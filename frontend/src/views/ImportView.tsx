@@ -7,6 +7,7 @@ import CsvMapping, { type PendingMapping } from "../components/CsvMapping";
 import { Warnings } from "../components/common";
 import type { CsvProfile } from "../core/parsers";
 import { signatureOf } from "../core/parsers/genericCsv";
+import { canPickFolder } from "../storage/saveFile";
 import { dayKey, sessionLabel, setSessions, type LoadError } from "../workspace";
 
 interface Props {
@@ -15,7 +16,13 @@ interface Props {
   groups: TransformerGroup[];
   errors: LoadError[];
   busy: boolean;
-  onFiles: (files: File[]) => void;
+  onFiles: (files: File[], groupKey?: string) => void;
+  onSaveGroup: (groupKey: string) => void;
+  onSaveAll: () => void;
+  onDeleteGroup: (groupKey: string) => void;
+  /** Open saved group packages (.zip) */
+  onRestore: (packages: File[]) => void;
+  notice: string;
   onGroups: (g: TransformerGroup[]) => void;
   /** Set the measurement time of traces; null restores the time read from the file */
   onSetDate: (traceIds: string[], date: Date | null) => void;
@@ -249,6 +256,88 @@ function SerialEdit({ g, files, others, onApply }: { g: TransformerGroup; files:
 
 const ACCEPT = ".csv,.sfra,.frax,.xml,.txt,.dat";
 
+/** Add a group from files, save one group or all of them as packages, open saved packages. */
+function GroupBar(p: {
+  groups: TransformerGroup[];
+  busy: boolean;
+  notice: string;
+  onFiles: (files: File[], groupKey?: string) => void;
+  onSaveAll: () => void;
+  onRestore: (packages: File[]) => void;
+}) {
+  const [name, setName] = useState("");
+  const addInput = useRef<HTMLInputElement>(null);
+  const openInput = useRef<HTMLInputElement>(null);
+  const exists = p.groups.some((g) => g.key === name.trim());
+  return (
+    <section className="group-bar" aria-label="Nhóm đo">
+      <div className="group-bar-row">
+        <form
+          className="group-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) addInput.current?.click();
+          }}
+        >
+          <label className="field">
+            <span>Thêm nhóm (số chế tạo hoặc tên máy)</span>
+            <input list="tx-keys" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: MBA T1" />
+          </label>
+          <button type="submit" disabled={!name.trim() || p.busy}>
+            {exists ? "Thêm file vào nhóm…" : "Chọn file cho nhóm mới…"}
+          </button>
+          <input
+            ref={addInput}
+            type="file"
+            multiple
+            accept={ACCEPT}
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) {
+                p.onFiles(files, name.trim());
+                setName("");
+              }
+              e.target.value = "";
+            }}
+          />
+        </form>
+        <div className="row gap wrap">
+          <button onClick={p.onSaveAll} disabled={!p.groups.length || p.busy}>
+            {canPickFolder() ? "Lưu tất cả nhóm vào thư mục…" : "Lưu tất cả nhóm (.zip)"}
+          </button>
+          <button onClick={() => openInput.current?.click()} disabled={p.busy}>
+            Mở nhóm đã lưu (.zip)…
+          </button>
+          <input
+            ref={openInput}
+            type="file"
+            multiple
+            accept=".zip"
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) p.onRestore(files);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+      <p className="muted small">
+        Mỗi nhóm lưu thành một file .zip gồm file đo gốc và các chỉnh sửa (ngày đo, phép đo, số chế tạo, kỳ đã chọn). Mở lại file
+        đó ở phiên khác hoặc máy khác để tiếp tục; có thể kéo thả file .zip vào ô nhập file.
+        {canPickFolder() ? "" : " Trình duyệt này không hỗ trợ chọn thư mục, các nhóm được lưu chung một file .zip."}
+      </p>
+      {p.notice && (
+        <p className="notice" role="status">
+          {p.notice}
+        </p>
+      )}
+    </section>
+  );
+}
+
+
 export default function ImportView(p: Props) {
   const [drag, setDrag] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -258,7 +347,10 @@ export default function ImportView(p: Props) {
   const take = (list: FileList | null) => {
     if (!list) return;
     const files = Array.from(list).filter((f) => /\.(csv|sfra|frax|xml|txt|dat)$/i.test(f.name));
+    // saved group packages dropped together with measurement files
+    const packages = Array.from(list).filter((f) => /\.zip$/i.test(f.name));
     if (files.length) p.onFiles(files);
+    if (packages.length) p.onRestore(packages);
   };
 
   const updateGroup = (g: TransformerGroup) => p.onGroups(p.groups.map((x) => (x.key === g.key ? g : x)));
@@ -285,7 +377,7 @@ export default function ImportView(p: Props) {
         }}
       >
         <div>
-          <strong>Kéo thả file đo vào đây</strong>
+          <strong>Kéo thả file đo hoặc file nhóm đã lưu (.zip) vào đây</strong>
           <div className="muted">hoặc</div>
           <div className="row gap">
             <button className="primary" onClick={() => fileInput.current?.click()} disabled={p.busy}>
@@ -306,7 +398,9 @@ export default function ImportView(p: Props) {
           onChange={(e) => take(e.target.files)}
         />
       </div>
-      {p.busy && <p className="muted">Đang đọc file…</p>}
+      {p.busy && <p className="muted">Đang xử lý…</p>}
+
+      <GroupBar groups={p.groups} busy={p.busy} notice={p.notice} onFiles={p.onFiles} onSaveAll={p.onSaveAll} onRestore={p.onRestore} />
 
       {p.pending.length > 0 && (
         <div className="view">
@@ -390,6 +484,14 @@ export default function ImportView(p: Props) {
                 </button>
               </div>
             </div>
+            <div className="group-actions">
+              <button onClick={() => p.onSaveGroup(g.key)} disabled={p.busy}>
+                Lưu nhóm (.zip)
+              </button>
+              <button className="link danger" onClick={() => p.onDeleteGroup(g.key)} disabled={p.busy}>
+                Xóa nhóm
+              </button>
+            </div>
             {g.sessions.length < 2 && (
               <div className="note">
                 <p>
@@ -444,7 +546,8 @@ export default function ImportView(p: Props) {
                     const pick = (field: "baselineId" | "testId", id: string) => {
                       if (id && !r.candidates.includes(id)) {
                         // a file of another measurement: give it this row's STT, label and configuration
-                        p.onSetMeasurement(id, measurementIdOf(byId.get(r.candidates[0])!));
+                        const ref = r.candidates.map((c) => byId.get(c)).find(Boolean);
+                        if (ref) p.onSetMeasurement(id, measurementIdOf(ref));
                         return;
                       }
                       updateGroup({
@@ -458,7 +561,8 @@ export default function ImportView(p: Props) {
                       return (
                         <select value={cur?.id ?? ""} onChange={(e) => pick(field, e.target.value)}>
                           <option value="">— không có —</option>
-                          {r.candidates.map((id) => {
+                          {/* files just removed are skipped until the groups are rebuilt */}
+                          {r.candidates.filter((id) => byId.has(id)).map((id) => {
                             const t = byId.get(id)!;
                             return (
                               <option key={id} value={id}>

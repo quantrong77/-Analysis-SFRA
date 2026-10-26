@@ -222,7 +222,7 @@ function SetupCompare({ r, std, row, byId, onPick }: {
   const picker = (field: "baselineId" | "testId", cur: Trace, other: Trace) => (
     <select aria-label={field === "baselineId" ? "File baseline" : "File lần đo"} value={cur.id} onChange={(e) => onPick(field, e.target.value)}>
       {row.candidates
-        .filter((id) => id !== other.id)
+        .filter((id) => id !== other.id && byId.has(id))
         .map((id) => {
           const t = byId.get(id)!;
           return (
