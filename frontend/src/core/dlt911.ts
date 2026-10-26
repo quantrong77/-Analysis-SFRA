@@ -159,3 +159,40 @@ export function classify(values: Record<string, number | null>, std: Standards):
 export function actionFor(levelId: string, std: Standards): string {
   return std.actions.by_level[levelId] ?? "";
 }
+
+/**
+ * The level one band's Rxy points to on its own (for colouring): the first level, most severe
+ * first, with a condition on that band that the value meets. Conditions on other bands are ignored.
+ */
+export function bandLevel(band: string, v: number | null, std: Standards): Classification | null {
+  if (v === null) return null;
+  const c = std.dlt911.classification;
+  const name = `R${band}`;
+  for (const level of c.levels) {
+    const hit = (level.any ?? []).some((cl) => cl[name] && Object.entries(cl[name]).every(([op, t]) => OPS[op](v, t)));
+    if (hit) return toClassification(level, c.source);
+  }
+  return null;
+}
+
+const OP_TEXT: Record<string, string> = { lt: "<", le: "≤", gt: ">", ge: "≥" };
+
+/** Table A.1 levels with their conditions as text ("RLF < 0,6 hoặc ..."), in the order they are checked. */
+export function levelConditions(std: Standards, fmt: (v: number) => string): { level: Classification; text: string }[] {
+  const c = std.dlt911.classification;
+  const clause = (cl: Record<string, Record<string, number>>) =>
+    Object.entries(cl)
+      .map(([name, conds]) => {
+        const e = Object.entries(conds);
+        // a range on one band reads "0,6 ≤ RLF < 1,0"
+        const lo = e.find(([op]) => op === "ge" || op === "gt");
+        const hi = e.find(([op]) => op === "lt" || op === "le");
+        if (lo && hi) return `${fmt(lo[1])} ${OP_TEXT[lo[0] === "ge" ? "le" : "lt"]} ${name} ${OP_TEXT[hi[0]]} ${fmt(hi[1])}`;
+        return e.map(([op, t]) => `${name} ${OP_TEXT[op]} ${fmt(t)}`).join(" và ");
+      })
+      .join(" và ");
+  return [
+    ...c.levels.map((l) => ({ level: toClassification(l, c.source), text: (l.any ?? []).map(clause).join(" hoặc ") })),
+    { level: toClassification(c.insufficient, c.source), text: c.insufficient.note ?? "" },
+  ];
+}

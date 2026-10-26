@@ -1,6 +1,6 @@
 /** Workspace state: loaded traces, pairing choices per transformer, computed results. */
 import { analyzePair, type PairResult } from "./core/analysis";
-import { buildRows, dayKey, groupTraces, type PairRow, type TransformerGroup } from "./core/pairing";
+import { buildRows, dayKey, groupTraces, UNKNOWN_DAY, type PairRow, type TransformerGroup } from "./core/pairing";
 import type { GridMode } from "./core/resample";
 import type { Standards } from "./core/standards";
 import type { Trace } from "./core/types";
@@ -22,8 +22,13 @@ export function regroup(traces: Trace[], previous: TransformerGroup[]): Transfor
   return groupTraces(traces).map((g) => {
     const p = prev.get(g.key);
     if (!p) return g;
-    const baselineSession = g.sessions.includes(p.baselineSession) ? p.baselineSession : g.baselineSession;
-    const testSession = g.sessions.includes(p.testSession) ? p.testSession : g.testSession;
+    // keep the user's sessions unless they no longer exist, are the undated session while dated
+    // ones exist, or were a single session and a second one has appeared (e.g. a date was entered)
+    const known = g.sessions.filter((s) => s !== UNKNOWN_DAY);
+    const stale = p.baselineSession === p.testSession && known.length > 1;
+    const keep = (s: string) => !stale && g.sessions.includes(s) && (s !== UNKNOWN_DAY || known.length === 0);
+    const baselineSession = keep(p.baselineSession) ? p.baselineSession : g.baselineSession;
+    const testSession = keep(p.testSession) ? p.testSession : g.testSession;
     const list = traces.filter((t) => t.transformerKey === g.key);
     const rows = buildRows(list, baselineSession, testSession).map((r) => {
       const old = p.rows.find((o) => o.key === r.key);

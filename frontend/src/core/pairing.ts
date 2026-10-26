@@ -5,8 +5,11 @@
  */
 import type { Trace } from "./types";
 
+/** Session of files whose measurement date could not be read; never a default baseline or test session. */
+export const UNKNOWN_DAY = "(không rõ ngày)";
+
 export const dayKey = (d: Date | null): string =>
-  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "(không rõ ngày)";
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : UNKNOWN_DAY;
 
 const normCfg = (s: string) => s.trim().toLowerCase();
 const hasShort = (t: Trace) => !["", "none"].includes(normCfg(t.setting.shortedTerminal));
@@ -118,9 +121,11 @@ export function groupTraces(traces: Trace[]): TransformerGroup[] {
   for (const t of traces) byTx.set(t.transformerKey, [...(byTx.get(t.transformerKey) ?? []), t]);
   const groups: TransformerGroup[] = [];
   for (const [key, list] of byTx) {
-    const sessions = [...new Set(list.map((t) => dayKey(t.testDate)))].sort();
-    const baselineSession = sessions[0];
-    const testSession = sessions[sessions.length - 1];
+    const all = new Set(list.map((t) => dayKey(t.testDate)));
+    const known = [...all].filter((s) => s !== UNKNOWN_DAY).sort();
+    const sessions = all.has(UNKNOWN_DAY) ? [...known, UNKNOWN_DAY] : known;
+    const baselineSession = known[0] ?? UNKNOWN_DAY;
+    const testSession = known[known.length - 1] ?? UNKNOWN_DAY;
     groups.push({
       key,
       serialNumber: list[0].serialNumber,

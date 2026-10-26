@@ -81,6 +81,24 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
   };
 }
 
+/**
+ * Magnitude above phase on one shared frequency axis, so zooming one zooms both.
+ * Peak markers, when given, go on the magnitude row.
+ */
+export function bodeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, markers: Record<string, unknown>[] = []): Figure {
+  const mag = curves(r, extras, (t) => t.magDb, 1.6, names).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
+  const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
+  return {
+    data: [...mag, ...markers.map((m) => ({ ...m, yaxis: "y" })), ...phase],
+    layout: {
+      xaxis: { ...xAxis, anchor: "y2" },
+      yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb", domain: [0.53, 1] },
+      yaxis2: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 90, gridcolor: "#e3e7eb", domain: [0, 0.45] },
+      shapes: bandShapes(std), annotations: bandAnnotations(std),
+    },
+  };
+}
+
 export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards): Figure {
   const a = r.aligned;
   return {

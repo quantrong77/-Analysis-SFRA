@@ -414,7 +414,16 @@ export default function App() {
             busy={busy}
             onFiles={onFiles}
             onGroups={setGroups}
-            onSetDate={(id, d) => setWs((w) => ({ ...w, dateEdits: { ...w.dateEdits, [id]: d.toISOString() } }))}
+            onSetDate={(ids, d) =>
+              setWs((w) => {
+                const edits = { ...w.dateEdits };
+                for (const id of ids) {
+                  if (d) edits[id] = d.toISOString();
+                  else delete edits[id];
+                }
+                return { ...w, dateEdits: edits };
+              })
+            }
             onRemove={onRemove}
             onClear={onClear}
             pending={pending}
@@ -450,6 +459,11 @@ export default function App() {
             onCompare={(k) => {
               setActiveGroup(k);
               setView("compare");
+            }}
+            onPlot={(k, row) => {
+              setActiveGroup(k);
+              setRowKey(row);
+              setView("detail");
             }}
           />
         )}

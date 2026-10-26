@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { checkTrace, fmtHz } from "../core/quality";
-import { displayLabel, measurementIdOf, type MeasurementId, type TransformerGroup } from "../core/pairing";
+import { displayLabel, measurementIdOf, UNKNOWN_DAY, type MeasurementId, type TransformerGroup } from "../core/pairing";
 import type { Standards } from "../core/standards";
 import type { Trace } from "../core/types";
 import CsvMapping, { type PendingMapping } from "../components/CsvMapping";
 import { Warnings } from "../components/common";
 import type { CsvProfile } from "../core/parsers";
 import { signatureOf } from "../core/parsers/genericCsv";
-import { dayKey, fmtDateTime, sessionLabel, setSessions, type LoadError } from "../workspace";
+import { dayKey, sessionLabel, setSessions, type LoadError } from "../workspace";
 
 interface Props {
   std: Standards;
@@ -17,11 +17,14 @@ interface Props {
   busy: boolean;
   onFiles: (files: File[]) => void;
   onGroups: (g: TransformerGroup[]) => void;
-  onSetDate: (traceId: string, date: Date) => void;
+  /** Set the measurement time of traces; null restores the time read from the file */
+  onSetDate: (traceIds: string[], date: Date | null) => void;
   onRemove: (traceId: string) => void;
   onClear: () => void;
   onAnalyze: (groupKey: string) => void;
   onCompare: (groupKey: string) => void;
+  /** Open the Bode plots and DL/T 911 analysis of one paired measurement */
+  onPlot: (groupKey: string, rowKey: string) => void;
   pending: PendingMapping[];
   onMap: (profile: CsvProfile, item: PendingMapping) => void;
   onSkipPending: (item: PendingMapping) => void;
@@ -29,6 +32,123 @@ interface Props {
   onSetTransformer: (sha256s: string[], key: string, fromGroup?: string) => void;
   /** Change what a trace is paired by; null restores the values read from the file */
   onSetMeasurement: (traceId: string, m: MeasurementId | null) => void;
+}
+
+const USER_DATE = "Người dùng nhập";
+
+// <input type="datetime-local"> works in local time: "YYYY-MM-DDTHH:mm"
+const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalInput = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` : "";
+const fromLocalInput = (v: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(v);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0)) : null;
+};
+/** A session day ("2019-11-16") as a date, keeping the time of day of `keep` when given. */
+const onSessionDay = (s: string, keep: Date | null) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d, keep?.getHours() ?? 0, keep?.getMinutes() ?? 0);
+};
+
+function DateTimeInput({ t, onSet }: { t: Trace; onSet: (d: Date | null) => void }) {
+  return (
+    <input
+      key={toLocalInput(t.testDate)}
+      type="datetime-local"
+      aria-label={`Thời điểm đo ${t.sourceName}`}
+      defaultValue={toLocalInput(t.testDate)}
+      onBlur={(e) => {
+        const d = fromLocalInput(e.target.value);
+        if (d && d.getTime() !== t.testDate?.getTime()) onSet(d);
+      }}
+    />
+  );
+}
+
+/**
+ * Files whose measurement time could not be read from the file or its name, and files whose
+ * time was entered by hand: enter the time, or put the file in the baseline / test session.
+ */
+function MeasurementTimes({ g, list, onSetDate }: { g: TransformerGroup; list: Trace[]; onSetDate: (ids: string[], d: Date | null) => void }) {
+  const [bulk, setBulk] = useState("");
+  const undated = list.filter((t) => !t.testDate);
+  const edited = list.filter((t) => t.testDate && t.dateSource === USER_DATE);
+  if (!undated.length && !edited.length) return null;
+  const known = g.sessions.filter((s) => s !== UNKNOWN_DAY);
+  const bulkDate = fromLocalInput(bulk);
+  return (
+    <div className={undated.length ? "times note" : "times"}>
+      <h3>{undated.length ? `${undated.length} file chưa xác định được thời điểm đo` : "Thời điểm đo đã nhập tay"}</h3>
+      {undated.length > 0 && (
+        <p className="small">
+          Không đọc được thời điểm đo từ nội dung file và tên file. Nhập thời điểm đo, hoặc đặt file vào kỳ baseline hay kỳ lần đo. File
+          chưa có thời điểm đo không được chọn làm baseline hay lần đo.
+        </p>
+      )}
+      <div className="table-wrap">
+        <table className="grid small">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Phép đo</th>
+              <th>Thời điểm đo</th>
+              <th>Đặt nhanh</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...undated, ...edited].map((t) => (
+              <tr key={t.id}>
+                <td className="file-name">{t.sourceName}</td>
+                <td>
+                  {t.index !== null ? `${t.index} ` : ""}
+                  {displayLabel(t)}
+                </td>
+                <td className="nowrap">
+                  <DateTimeInput t={t} onSet={(d) => onSetDate([t.id], d)} />
+                  {t.dateSource === USER_DATE && (
+                    <button type="button" className="link" onClick={() => onSetDate([t.id], null)}>
+                      Khôi phục
+                    </button>
+                  )}
+                </td>
+                <td>
+                  <div className="row gap wrap">
+                    {known.length > 0 && (
+                      <button type="button" onClick={() => onSetDate([t.id], onSessionDay(g.baselineSession, t.testDate))}>
+                        {known.length > 1 ? "Kỳ baseline" : "Cùng kỳ"} {sessionLabel(g.baselineSession)}
+                      </button>
+                    )}
+                    {known.length > 1 && g.testSession !== g.baselineSession && (
+                      <button type="button" onClick={() => onSetDate([t.id], onSessionDay(g.testSession, t.testDate))}>
+                        Kỳ lần đo {sessionLabel(g.testSession)}
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {undated.length > 1 && (
+        <form
+          className="row gap wrap times-bulk"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (bulkDate) onSetDate(undated.map((t) => t.id), bulkDate);
+          }}
+        >
+          <label>
+            Cùng một thời điểm cho {undated.length} file chưa có{" "}
+            <input type="datetime-local" value={bulk} onChange={(e) => setBulk(e.target.value)} />
+          </label>
+          <button type="submit" disabled={!bulkDate}>
+            Áp dụng
+          </button>
+        </form>
+      )}
+    </div>
+  );
 }
 
 /** STT, label and open / short configuration of one trace, editable so it pairs with the right measurement. */
@@ -301,6 +421,8 @@ export default function ImportView(p: Props) {
               </div>
             )}
 
+            <MeasurementTimes g={g} list={list} onSetDate={p.onSetDate} />
+
             <div className="table-wrap">
               <table className="grid">
                 <thead>
@@ -312,6 +434,7 @@ export default function ImportView(p: Props) {
                     <th>Số điểm</th>
                     <th>Dải tần</th>
                     <th>Cảnh báo chất lượng</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -379,6 +502,11 @@ export default function ImportView(p: Props) {
                         <td>
                           <Warnings items={q} compact />
                         </td>
+                        <td>
+                          <button className="nowrap" disabled={!(base && test) || base.id === test.id} onClick={() => p.onPlot(g.key, r.key)}>
+                            Vẽ giản đồ
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -418,15 +546,12 @@ export default function ImportView(p: Props) {
                         <td>{t.formatLabel}</td>
                         <td>{t.traceName}</td>
                         <td>
-                          <input
-                            type="date"
-                            value={t.testDate ? dayKey(t.testDate) : ""}
-                            title={fmtDateTime(t.testDate)}
-                            onChange={(e) => {
-                              const [y, m, d] = e.target.value.split("-").map(Number);
-                              if (y) p.onSetDate(t.id, new Date(y, m - 1, d, t.testDate?.getHours() ?? 0, t.testDate?.getMinutes() ?? 0));
-                            }}
-                          />
+                          <DateTimeInput t={t} onSet={(d) => p.onSetDate([t.id], d)} />
+                          {t.dateSource === USER_DATE && (
+                            <button type="button" className="link" onClick={() => p.onSetDate([t.id], null)}>
+                              Khôi phục
+                            </button>
+                          )}
                         </td>
                         <td className="muted">{t.dateSource || "Chưa có"}</td>
                         <td>
