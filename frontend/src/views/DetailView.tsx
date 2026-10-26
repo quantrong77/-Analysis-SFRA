@@ -3,6 +3,7 @@ import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type PlotOptions } 
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
 import PlotTools from "../components/PlotTools";
+import { DateTimeInput } from "../components/DateTime";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
 import { bandLevel, levelConditions } from "../core/dlt911";
@@ -11,7 +12,7 @@ import { fmtHz, fmtHzShort } from "../core/quality";
 import { fmtNum } from "../core/rules";
 import type { Standards } from "../core/standards";
 import type { Trace } from "../core/types";
-import { fmtDateTime, sessionLabel, type RowResult } from "../workspace";
+import { sessionLabel, type RowResult } from "../workspace";
 
 interface Props {
   std: Standards;
@@ -22,6 +23,8 @@ interface Props {
   onSelect: (rowKey: string) => void;
   /** Use another file of this measurement as baseline or test */
   onPick: (rowKey: string, field: "baselineId" | "testId", id: string) => void;
+  /** Measurement times entered by the user (null restores the file's) */
+  onSetDates: (edits: [string, Date | null][]) => void;
 }
 
 // verdict colours come from the stylesheet tokens (--v-normal, ...), so the chart matches the tables
@@ -39,7 +42,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const shortName = (t: Trace) => `${sessionLabel(dayKey(t.testDate))} ${t.label}`;
 
-export default function DetailView({ std, group, results, rowKey, traces, onSelect, onPick }: Props) {
+export default function DetailView({ std, group, results, rowKey, traces, onSelect, onPick, onSetDates }: Props) {
   const [tab, setTab] = useState<Tab>("compare");
   const [extra, setExtra] = useState<string[]>([]);
   const [showPeaks, setShowPeaks] = useState(true);
@@ -108,7 +111,14 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
           <LevelBadge c={r.classification} /> {r.action}. <InternalTag />
         </p>
         <Warnings items={r.warnings} />
-        <SetupCompare r={r} std={std} row={rr.row} byId={byId} onPick={(field, id) => onPick(rr.row.key, field, id)} />
+        <SetupCompare
+          r={r}
+          std={std}
+          row={rr.row}
+          byId={byId}
+          onPick={(field, id) => onPick(rr.row.key, field, id)}
+          onSetDate={(id, d) => onSetDates([[id, d]])}
+        />
       </section>
 
       <div className="tabs" role="tablist" aria-label="Nội dung phép đo">
@@ -193,12 +203,13 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
 }
 
 /** Baseline and test side by side: file, time and test configuration, with differences marked. */
-function SetupCompare({ r, std, row, byId, onPick }: {
+function SetupCompare({ r, std, row, byId, onPick, onSetDate }: {
   r: PairResult;
   std: Standards;
   row: PairRow;
   byId: Map<string, Trace>;
   onPick: (field: "baselineId" | "testId", id: string) => void;
+  onSetDate: (traceId: string, d: Date | null) => void;
 }) {
   const codes = new Set(r.warnings.map((w) => w.code));
   const cfg = (t: Trace) => (measurementConfig(t) === "open" ? "Hở mạch" : "Nối tắt");
@@ -211,7 +222,6 @@ function SetupCompare({ r, std, row, byId, onPick }: {
     detc_position: (t) => t.setting.detcPosition,
   };
   const rows: { label: string; get: (t: Trace) => string; differs: boolean }[] = [
-    { label: "Thời điểm đo", get: (t) => fmtDateTime(t.testDate), differs: false },
     {
       label: "Đầu đỏ → đầu đen",
       get: (t) => `${t.setting.redLead || "–"} → ${t.setting.blackLead || "–"}`,
@@ -252,6 +262,15 @@ function SetupCompare({ r, std, row, byId, onPick }: {
             <th scope="row">File</th>
             <td>{picker("baselineId", r.baseline, r.test)}</td>
             <td>{picker("testId", r.test, r.baseline)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Thời điểm đo</th>
+            {[r.baseline, r.test].map((t) => (
+              <td key={t.id} className="nowrap">
+                <DateTimeInput t={t} onSet={(d) => onSetDate(t.id, d)} />
+                {t.dateSource && <div className="muted small">Nguồn: {t.dateSource}</div>}
+              </td>
+            ))}
           </tr>
           {rows.map((x) => (
             <tr key={x.label} className={x.differs ? "differs" : ""}>

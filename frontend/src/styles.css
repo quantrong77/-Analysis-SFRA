@@ -997,6 +997,27 @@ textarea.yaml-edit {
 .times table {
   background: var(--sheet);
 }
+.session-pick {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.session-date {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13.5px;
+}
+.session-date-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.date-restore {
+  margin-left: 8px;
+}
 .times td .link {
   margin-left: 8px;
 }

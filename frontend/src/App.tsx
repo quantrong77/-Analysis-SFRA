@@ -379,6 +379,20 @@ export default function App() {
     [filesOfGroup, activeGroup],
   );
 
+  /** Measurement times entered by the user, per trace; null restores the time read from the file. */
+  const setDates = useCallback(
+    (edits: [string, Date | null][]) =>
+      setWs((w) => {
+        const dates = { ...w.dateEdits };
+        for (const [id, d] of edits) {
+          if (d) dates[id] = d.toISOString();
+          else delete dates[id];
+        }
+        return { ...w, dateEdits: dates };
+      }),
+    [],
+  );
+
   const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
   // Groups are rebuilt in an effect after the traces change, one render later. Until then, drop
   // files that are no longer loaded (just removed) so no screen looks up a file that is gone.
@@ -522,16 +536,8 @@ export default function App() {
             busy={busy}
             onFiles={onFiles}
             onGroups={setGroups}
-            onSetDate={(ids, d) =>
-              setWs((w) => {
-                const edits = { ...w.dateEdits };
-                for (const id of ids) {
-                  if (d) edits[id] = d.toISOString();
-                  else delete edits[id];
-                }
-                return { ...w, dateEdits: edits };
-              })
-            }
+            onSetDate={(ids, d) => setDates(ids.map((id) => [id, d]))}
+            onSetDates={setDates}
             onRemove={onRemove}
             onClear={onClear}
             pending={pending}
@@ -600,6 +606,7 @@ export default function App() {
             rowKey={currentRow}
             traces={traces}
             onSelect={setRowKey}
+            onSetDates={setDates}
             onPick={(rowKey, field, id) =>
               setGroups((gs) =>
                 gs.map((g) => (g.key === group.key ? { ...g, rows: g.rows.map((x) => (x.key === rowKey ? { ...x, [field]: id } : x)) } : g)),

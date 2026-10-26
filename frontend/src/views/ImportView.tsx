@@ -4,6 +4,7 @@ import { displayLabel, measurementIdOf, UNKNOWN_DAY, type MeasurementId, type Tr
 import type { Standards } from "../core/standards";
 import type { Trace } from "../core/types";
 import CsvMapping, { type PendingMapping } from "../components/CsvMapping";
+import { DateTimeInput, fromLocalInput, onSessionDay, SessionDateEdit, USER_DATE } from "../components/DateTime";
 import { Warnings } from "../components/common";
 import type { CsvProfile } from "../core/parsers";
 import { signatureOf } from "../core/parsers/genericCsv";
@@ -26,6 +27,8 @@ interface Props {
   onGroups: (g: TransformerGroup[]) => void;
   /** Set the measurement time of traces; null restores the time read from the file */
   onSetDate: (traceIds: string[], date: Date | null) => void;
+  /** Several traces, each with its own time (null restores the file's) */
+  onSetDates: (edits: [string, Date | null][]) => void;
   onRemove: (traceId: string) => void;
   onClear: () => void;
   onAnalyze: (groupKey: string) => void;
@@ -41,37 +44,6 @@ interface Props {
   onSetMeasurement: (traceId: string, m: MeasurementId | null) => void;
 }
 
-const USER_DATE = "Người dùng nhập";
-
-// <input type="datetime-local"> works in local time: "YYYY-MM-DDTHH:mm"
-const pad = (n: number) => String(n).padStart(2, "0");
-const toLocalInput = (d: Date | null) =>
-  d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` : "";
-const fromLocalInput = (v: string): Date | null => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(v);
-  return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0)) : null;
-};
-/** A session day ("2019-11-16") as a date, keeping the time of day of `keep` when given. */
-const onSessionDay = (s: string, keep: Date | null) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d, keep?.getHours() ?? 0, keep?.getMinutes() ?? 0);
-};
-
-function DateTimeInput({ t, onSet }: { t: Trace; onSet: (d: Date | null) => void }) {
-  return (
-    <input
-      key={toLocalInput(t.testDate)}
-      type="datetime-local"
-      aria-label={`Thời điểm đo ${t.sourceName}`}
-      defaultValue={toLocalInput(t.testDate)}
-      onBlur={(e) => {
-        const d = fromLocalInput(e.target.value);
-        if (d && d.getTime() !== t.testDate?.getTime()) onSet(d);
-      }}
-    />
-  );
-}
-
 /**
  * Files whose measurement time could not be read from the file or its name, and files whose
  * time was entered by hand: enter the time, or put the file in the baseline / test session.
@@ -83,9 +55,8 @@ function MeasurementTimes({ g, list, onSetDate }: { g: TransformerGroup; list: T
   if (!undated.length && !edited.length) return null;
   const known = g.sessions.filter((s) => s !== UNKNOWN_DAY);
   const bulkDate = fromLocalInput(bulk);
-  return (
-    <div className={undated.length ? "times note" : "times"}>
-      <h3>{undated.length ? `${undated.length} file chưa xác định được thời điểm đo` : "Thời điểm đo đã nhập tay"}</h3>
+  const body = (
+    <>
       {undated.length > 0 && (
         <p className="small">
           Không đọc được thời điểm đo từ nội dung file và tên file. Nhập thời điểm đo, hoặc đặt file vào kỳ baseline hay kỳ lần đo. File
@@ -112,11 +83,7 @@ function MeasurementTimes({ g, list, onSetDate }: { g: TransformerGroup; list: T
                 </td>
                 <td className="nowrap">
                   <DateTimeInput t={t} onSet={(d) => onSetDate([t.id], d)} />
-                  {t.dateSource === USER_DATE && (
-                    <button type="button" className="link" onClick={() => onSetDate([t.id], null)}>
-                      Khôi phục
-                    </button>
-                  )}
+                  
                 </td>
                 <td>
                   <div className="row gap wrap">
@@ -154,6 +121,21 @@ function MeasurementTimes({ g, list, onSetDate }: { g: TransformerGroup; list: T
           </button>
         </form>
       )}
+    </>
+  );
+  // nothing left to fill in: hand-entered times stay reachable but out of the way
+  if (!undated.length) {
+    return (
+      <details className="times">
+        <summary>Thời điểm đo đã nhập tay ({edited.length} file)</summary>
+        {body}
+      </details>
+    );
+  }
+  return (
+    <div className="times note">
+      <h3>{undated.length} file chưa xác định được thời điểm đo</h3>
+      {body}
     </div>
   );
 }
@@ -453,32 +435,50 @@ export default function ImportView(p: Props) {
                 />
               </div>
               <div className="row gap wrap">
-                <label>
-                  Baseline{" "}
-                  <select
-                    value={g.baselineSession}
-                    onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
-                  >
-                    {g.sessions.map((s) => (
-                      <option key={s} value={s}>
-                        {sessionLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Lần đo{" "}
-                  <select
-                    value={g.testSession}
-                    onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
-                  >
-                    {g.sessions.map((s) => (
-                      <option key={s} value={s}>
-                        {sessionLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="session-pick">
+                  <label>
+                    Baseline{" "}
+                    <select
+                      value={g.baselineSession}
+                      onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
+                    >
+                      {g.sessions.map((s) => (
+                        <option key={s} value={s}>
+                          {sessionLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <SessionDateEdit
+                    key={`b${g.baselineSession}`}
+                    session={g.baselineSession}
+                    files={list.filter((t) => dayKey(t.testDate) === g.baselineSession)}
+                    onSetDate={p.onSetDates}
+                  />
+                </div>
+                <div className="session-pick">
+                  <label>
+                    Lần đo{" "}
+                    <select
+                      value={g.testSession}
+                      onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
+                    >
+                      {g.sessions.map((s) => (
+                        <option key={s} value={s}>
+                          {sessionLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {g.testSession !== g.baselineSession && (
+                    <SessionDateEdit
+                      key={`t${g.testSession}`}
+                      session={g.testSession}
+                      files={list.filter((t) => dayKey(t.testDate) === g.testSession)}
+                      onSetDate={p.onSetDates}
+                    />
+                  )}
+                </div>
                 <button className="primary" disabled={!paired} onClick={() => p.onAnalyze(g.key)}>
                   Xác nhận và tính ({paired} cặp)
                 </button>
@@ -651,11 +651,7 @@ export default function ImportView(p: Props) {
                         <td>{t.traceName}</td>
                         <td>
                           <DateTimeInput t={t} onSet={(d) => p.onSetDate([t.id], d)} />
-                          {t.dateSource === USER_DATE && (
-                            <button type="button" className="link" onClick={() => p.onSetDate([t.id], null)}>
-                              Khôi phục
-                            </button>
-                          )}
+                          
                         </td>
                         <td className="muted">{t.dateSource || "Chưa có"}</td>
                         <td>
