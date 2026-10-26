@@ -48,59 +48,63 @@ export default function StandardsView({ std, profiles, onDeleteProfile, onSaveRu
 
       <section className="panel">
         <h2>Dải tần và ngưỡng Rxy</h2>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Dải</th>
-              <th>Điều kiện</th>
-              <th className="num">Ngưỡng bình thường</th>
-              <th>Căn cứ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(std.dlt911.bands).map(([k, b]) => (
-              <tr key={k}>
-                <td>
-                  <strong>R{k}</strong> {b.label}
-                </td>
-                <td className="nowrap">
-                  {fmtHz(b.f_min)} {b.include_min ? "≤" : "<"} f {b.include_max ? "≤" : "<"} {fmtHz(b.f_max)}
-                </td>
-                <td className="num">≥ {fmtNum(b.threshold, std, 1)}</td>
-                <td className="muted">{b.source}</td>
+        <div className="table-wrap">
+          <table className="grid">
+            <thead>
+              <tr>
+                <th>Dải</th>
+                <th>Điều kiện</th>
+                <th className="num">Ngưỡng bình thường</th>
+                <th>Căn cứ</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {Object.entries(std.dlt911.bands).map(([k, b]) => (
+                <tr key={k}>
+                  <td>
+                    <strong>R{k}</strong> {b.label}
+                  </td>
+                  <td className="nowrap">
+                    {fmtHz(b.f_min)} {b.include_min ? "≤" : "<"} f {b.include_max ? "≤" : "<"} {fmtHz(b.f_max)}
+                  </td>
+                  <td className="num">≥ {fmtNum(b.threshold, std, 1)}</td>
+                  <td className="muted">{b.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="panel">
         <h2>Phân loại mức độ biến dạng</h2>
         <p className="muted">{c.source}. Xét theo thứ tự từ nặng đến nhẹ, gặp điều kiện đầu tiên thì dừng.</p>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Thứ tự</th>
-              <th>Mức độ</th>
-              <th>Điều kiện</th>
-              <th>Hành động gợi ý</th>
-              <th>Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {c.levels.map((l, i) => (
-              <tr key={l.id}>
-                <td className="num">{i + 1}</td>
-                <td>
-                  <LevelBadge c={{ ...l, source: l.source ?? c.source, note: l.note ?? "" }} />
-                </td>
-                <td>{(l.any ?? []).map(clauseText).join(" hoặc ")}</td>
-                <td>{std.actions.by_level[l.id]}</td>
-                <td className="muted small">{l.in_standard ? "" : `${l.source ?? ""}. ${l.note ?? ""}`}</td>
+        <div className="table-wrap">
+          <table className="grid">
+            <thead>
+              <tr>
+                <th>Thứ tự</th>
+                <th>Mức độ</th>
+                <th>Điều kiện</th>
+                <th>Hành động gợi ý</th>
+                <th>Ghi chú</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {c.levels.map((l, i) => (
+                <tr key={l.id}>
+                  <td className="num">{i + 1}</td>
+                  <td>
+                    <LevelBadge c={{ ...l, source: l.source ?? c.source, note: l.note ?? "" }} />
+                  </td>
+                  <td>{(l.any ?? []).map(clauseText).join(" hoặc ")}</td>
+                  <td>{std.actions.by_level[l.id]}</td>
+                  <td className="muted small">{l.in_standard ? "" : `${l.source ?? ""}. ${l.note ?? ""}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="small">
           Hành động gợi ý: <InternalTag /> ({std.actions.source})
         </p>
@@ -138,30 +142,32 @@ export default function StandardsView({ std, profiles, onDeleteProfile, onSaveRu
         <p className="muted small">
           {std.tb812.source}. {std.tb812.note}
         </p>
-        <table className="grid small">
-          <thead>
-            <tr>
-              <th>Chỉ số</th>
-              <th>Tên</th>
-              <th>Phương trình</th>
-              <th>Giá trị lý tưởng</th>
-              <th>Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(std.tb812.indices as { id: string; name: string; equation: string; ideal: number; note?: string }[]).map((i) => (
-              <tr key={i.id}>
-                <td>
-                  <strong>{i.id}</strong>
-                </td>
-                <td>{i.name}</td>
-                <td>{i.equation || "–"}</td>
-                <td>{i.ideal}</td>
-                <td className="muted">{i.note ?? ""}</td>
+        <div className="table-wrap">
+          <table className="grid small">
+            <thead>
+              <tr>
+                <th>Chỉ số</th>
+                <th>Tên</th>
+                <th>Phương trình</th>
+                <th>Giá trị lý tưởng</th>
+                <th>Ghi chú</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(std.tb812.indices as { id: string; name: string; equation: string; ideal: number; note?: string }[]).map((i) => (
+                <tr key={i.id}>
+                  <td>
+                    <strong>{i.id}</strong>
+                  </td>
+                  <td>{i.name}</td>
+                  <td>{i.equation || "–"}</td>
+                  <td>{i.ideal}</td>
+                  <td className="muted">{i.note ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="panel">
@@ -169,44 +175,46 @@ export default function StandardsView({ std, profiles, onDeleteProfile, onSaveRu
         {profiles.length === 0 ? (
           <p className="muted">Chưa có. Hồ sơ được tạo khi ánh xạ cột một file CSV không tự nhận dạng được (Nhập dữ liệu).</p>
         ) : (
-          <table className="grid small">
-            <thead>
-              <tr>
-                <th>Tên</th>
-                <th>Tiêu đề cột</th>
-                <th>Phân cách / thập phân</th>
-                <th>Cột f / biên độ / pha</th>
-                <th>Đơn vị</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{p.name}</strong>
-                  </td>
-                  <td>
-                    <code>{p.signature || "(không có tiêu đề)"}</code>
-                  </td>
-                  <td>
-                    {DELIM_NAME[p.delimiter] ?? p.delimiter} / {p.decimalComma ? "dấu phẩy" : "dấu chấm"}
-                  </td>
-                  <td>
-                    {p.freqCol + 1} / {p.magCol + 1} / {p.phaseCol === null ? "–" : p.phaseCol + 1}
-                  </td>
-                  <td>
-                    {p.freqUnit}, {p.magUnit === "dB" ? "dB" : "tuyến tính"}, {p.phaseUnit === "deg" ? "độ" : "radian"}
-                  </td>
-                  <td>
-                    <button className="link danger" onClick={() => onDeleteProfile(p.id)}>
-                      Xóa
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table className="grid small">
+              <thead>
+                <tr>
+                  <th>Tên</th>
+                  <th>Tiêu đề cột</th>
+                  <th>Phân cách / thập phân</th>
+                  <th>Cột f / biên độ / pha</th>
+                  <th>Đơn vị</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {profiles.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.name}</strong>
+                    </td>
+                    <td>
+                      <code>{p.signature || "(không có tiêu đề)"}</code>
+                    </td>
+                    <td>
+                      {DELIM_NAME[p.delimiter] ?? p.delimiter} / {p.decimalComma ? "dấu phẩy" : "dấu chấm"}
+                    </td>
+                    <td>
+                      {p.freqCol + 1} / {p.magCol + 1} / {p.phaseCol === null ? "–" : p.phaseCol + 1}
+                    </td>
+                    <td>
+                      {p.freqUnit}, {p.magUnit === "dB" ? "dB" : "tuyến tính"}, {p.phaseUnit === "deg" ? "độ" : "radian"}
+                    </td>
+                    <td>
+                      <button className="link danger" onClick={() => onDeleteProfile(p.id)}>
+                        Xóa
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

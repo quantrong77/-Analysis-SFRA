@@ -131,7 +131,8 @@ function backdrop(std: Standards, opt: PlotOptions, fLo: number, fHi: number) {
         xref: "x", yref: "paper", x: log ? (Math.log10(z.lo) + Math.log10(z.hi)) / 2 : (z.lo + z.hi) / 2, y, yanchor: "top",
         text: z.label, showarrow: false,
         font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? (plain ? "#2f3b47" : "#6a7682") },
-        ...(plain ? { bgcolor: "rgba(255,255,255,0.72)", borderpad: 2 } : {}),
+        // a light plate behind the label keeps it readable where curves and peak markers run through it
+        bgcolor: "rgba(255,255,255,0.8)", borderpad: 2,
       })),
     ),
   };

@@ -38,7 +38,7 @@ export function Tb812Table({ ranges, std, showRxy }: { ranges: RangeIndices[]; s
         <tbody>
           {ranges.map((r) => (
             <tr key={r.key}>
-              <td>
+              <td className="nowrap">
                 <strong>{r.key.length <= 2 ? r.key : ""}</strong> {r.label}
               </td>
               <td className="nowrap">

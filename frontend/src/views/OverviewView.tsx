@@ -90,8 +90,14 @@ export default function OverviewView(p: Props) {
                     <td>
                       <strong>{g.key}</strong>
                     </td>
-                    <td>{g.locations.join(", ")}</td>
-                    <td>{g.sessions.map(sessionLabel).join(", ")}</td>
+                    <td className="cell-place">{g.locations.join(", ")}</td>
+                    <td>
+                      <span className="session-list">
+                        {g.sessions.map((s) => (
+                          <span key={s}>{sessionLabel(s)}</span>
+                        ))}
+                      </span>
+                    </td>
                     <td>{sessionLabel(g.sessions[g.sessions.length - 1])}</td>
                     <td className="num">{p.traceCount[g.key] ?? 0}</td>
                     <td>{p.worst[g.key] ? <LevelBadge c={p.worst[g.key]} /> : <span className="muted">Chưa có cặp để so</span>}</td>

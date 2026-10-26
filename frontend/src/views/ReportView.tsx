@@ -88,7 +88,7 @@ export default function ReportView({ std, results, info, onInfo, onReset }: Prop
               />
             </label>
           ))}
-          <label className="check">
+          <label className="check field-row">
             <input type="checkbox" checked={info.decimalComma} onChange={(e) => onInfo({ ...info, decimalComma: e.target.checked })} />
             Dấu thập phân kiểu Việt Nam (dấu phẩy)
           </label>

@@ -111,7 +111,7 @@ export default function ResultsView({ std, group, results, onOpen, onCompare }: 
                 <td>
                   <strong>{row.label}</strong>
                 </td>
-                <td>{result?.group.label ?? ""}</td>
+                <td className="nowrap">{result?.group.label ?? ""}</td>
                 {bands.map((b) => {
                   const br = result?.bands[b];
                   const below = br && br.rxy !== null && br.rxy < br.threshold;

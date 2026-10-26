@@ -526,7 +526,7 @@ export default function ImportView(p: Props) {
             <MeasurementTimes g={g} list={list} onSetDate={p.onSetDate} />
 
             <div className="table-wrap">
-              <table className="grid">
+              <table className="grid fit-selects">
                 <thead>
                   <tr>
                     <th>STT</th>
@@ -559,7 +559,7 @@ export default function ImportView(p: Props) {
                       const session = field === "baselineId" ? g.baselineSession : g.testSession;
                       const others = list.filter((t) => dayKey(t.testDate) === session && !r.candidates.includes(t.id));
                       return (
-                        <select value={cur?.id ?? ""} onChange={(e) => pick(field, e.target.value)}>
+                        <select value={cur?.id ?? ""} title={cur?.sourceName} onChange={(e) => pick(field, e.target.value)}>
                           <option value="">— không có —</option>
                           {/* files just removed are skipped until the groups are rebuilt */}
                           {r.candidates.filter((id) => byId.has(id)).map((id) => {
@@ -597,7 +597,7 @@ export default function ImportView(p: Props) {
                         </td>
                         <td>{sel("baselineId", base)}</td>
                         <td>{sel("testId", test)}</td>
-                        <td className="num">
+                        <td className="num nowrap">
                           {base?.freq.length ?? "–"} / {test?.freq.length ?? "–"}
                         </td>
                         <td className="nowrap">
