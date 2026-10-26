@@ -480,7 +480,19 @@ export default function App() {
           />
         )}
         {view === "detail" && group && currentRow && (
-          <DetailView std={std} group={group} results={results} rowKey={currentRow} traces={traces} onSelect={setRowKey} />
+          <DetailView
+            std={std}
+            group={group}
+            results={results}
+            rowKey={currentRow}
+            traces={traces}
+            onSelect={setRowKey}
+            onPick={(rowKey, field, id) =>
+              setGroups((gs) =>
+                gs.map((g) => (g.key === group.key ? { ...g, rows: g.rows.map((x) => (x.key === rowKey ? { ...x, [field]: id } : x)) } : g)),
+              )
+            }
+          />
         )}
         {view === "trend" && group && (
           <TrendView std={std} group={group} traces={traces} mode={mode} />

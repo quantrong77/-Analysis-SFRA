@@ -24,25 +24,76 @@ const sessionLabel = (t: Trace) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "?";
 };
 
+const ZONE_FILL: Record<string, string> = {
+  core: "rgba(143,106,0,0.08)",
+  interaction: "rgba(94,71,148,0.08)",
+  winding: "rgba(30,78,121,0.07)",
+  leads: "rgba(89,99,110,0.12)",
+};
+
+/** What is drawn behind the curves: DL/T 911 bands, IEC 60076-18 zones, or nothing. */
+export type Backdrop = "dlt911" | "iec" | "none";
+
+export interface PlotOptions {
+  scale?: "log" | "linear";
+  backdrop?: Backdrop;
+  /** Text and colour written in each DL/T 911 band, e.g. the band's Rxy */
+  bandLabels?: Record<string, { text: string; color: string }>;
+}
+
+interface Region {
+  key: string;
+  label: string;
+  lo: number;
+  hi: number;
+  fill: string;
+}
+
+// IEC zones run from 0 Hz to infinity: clip them to the measured range so they can be drawn on a log axis.
+function regions(std: Standards, opt: PlotOptions, fLo: number, fHi: number): Region[] {
+  const backdrop = opt.backdrop ?? "dlt911";
+  if (backdrop === "dlt911") {
+    return Object.entries(std.dlt911.bands).map(([k, b]) => ({
+      key: k, label: opt.bandLabels?.[k]?.text ?? k, lo: b.f_min, hi: b.f_max, fill: BAND_FILL[k] ?? "rgba(0,0,0,0.04)",
+    }));
+  }
+  if (backdrop === "iec") {
+    return Object.entries(std.iec_zones.zones as Record<string, { label: string; f_min: number; f_max: number }>)
+      .map(([k, z]) => ({ key: k, label: z.label, lo: Math.max(z.f_min, fLo), hi: Math.min(z.f_max, fHi), fill: ZONE_FILL[k] ?? "rgba(0,0,0,0.04)" }))
+      .filter((z) => z.hi > z.lo);
+  }
+  return [];
+}
+
 // On a log axis Plotly takes shape x in data units but annotation x in log10 units.
-function bandShapes(std: Standards) {
-  return Object.entries(std.dlt911.bands).map(([k, b]) => ({
-    type: "rect", xref: "x", yref: "paper", x0: b.f_min, x1: b.f_max, y0: 0, y1: 1,
-    fillcolor: BAND_FILL[k] ?? "rgba(0,0,0,0.04)", line: { width: 0 }, layer: "below",
-  }));
+function backdrop(std: Standards, opt: PlotOptions, fLo: number, fHi: number) {
+  const log = (opt.scale ?? "log") === "log";
+  const list = regions(std, opt, fLo, fHi);
+  const pos = (f: number) => (log ? Math.log10(f) : f);
+  // an IEC zone label wider than its zone would run into the next one; DL/T band labels carry Rxy and always show
+  const wide = (z: Region) => opt.backdrop !== "iec" || (pos(z.hi) - pos(z.lo)) / (pos(fHi) - pos(fLo)) >= 0.06;
+  return {
+    shapes: list.map((z) => ({
+      type: "rect", xref: "x", yref: "paper", x0: z.lo, x1: z.hi, y0: 0, y1: 1, fillcolor: z.fill, line: { width: 0 }, layer: "below",
+    })),
+    annotations: list.filter(wide).map((z) => ({
+      xref: "x", yref: "paper", x: log ? (Math.log10(z.lo) + Math.log10(z.hi)) / 2 : (z.lo + z.hi) / 2, y: 0.995, yanchor: "top",
+      text: z.label, showarrow: false,
+      font: { size: 12, color: opt.bandLabels?.[z.key]?.color ?? "#6a7682" },
+    })),
+  };
 }
 
-function bandAnnotations(std: Standards) {
-  return Object.entries(std.dlt911.bands).map(([k, b]) => ({
-    xref: "x", yref: "paper", x: (Math.log10(b.f_min) + Math.log10(b.f_max)) / 2, y: 0.995, yanchor: "top",
-    text: k, showarrow: false, font: { size: 12, color: "#6a7682" },
-  }));
-}
+const span = (traces: Trace[]): [number, number] => {
+  const all = traces.flatMap((t) => [t.freq[0], t.freq[t.freq.length - 1]]);
+  return [Math.min(...all), Math.max(...all)];
+};
 
-const xAxis = {
-  type: "log", title: { text: "Tần số (Hz)" }, exponentformat: "SI", gridcolor: "#e3e7eb",
+const AXIS = {
+  title: { text: "Tần số (Hz)" }, exponentformat: "SI", gridcolor: "#e3e7eb",
   linecolor: "#b9c1c9", minor: { showgrid: true, gridcolor: "#f1f3f5" },
 };
+const xAxisOf = (opt: PlotOptions) => ({ ...AXIS, type: opt.scale ?? "log" });
 
 type TwoTraces = Pick<PairResult, "baseline" | "test">;
 /** Curve names: baseline/test by default, or e.g. ["Pha A", "Pha B"] for a reference comparison */
@@ -61,22 +112,22 @@ function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], width:
   ];
 }
 
-export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames): Figure {
+export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
     data: curves(r, extras, (t) => t.magDb, 1.6, names),
     layout: {
-      xaxis: xAxis, yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb" },
-      shapes: bandShapes(std), annotations: bandAnnotations(std),
+      xaxis: xAxisOf(opt), yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb" },
+      ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
     },
   };
 }
 
-export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames): Figure {
+export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
     data: curves(r, extras, (t) => t.phaseDeg, 1.4, names),
     layout: {
-      xaxis: xAxis, yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e3e7eb" },
-      shapes: bandShapes(std), annotations: bandAnnotations(std),
+      xaxis: xAxisOf(opt), yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e3e7eb" },
+      ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
     },
   };
 }
@@ -85,28 +136,30 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
  * Magnitude above phase on one shared frequency axis, so zooming one zooms both.
  * Peak markers, when given, go on the magnitude row.
  */
-export function bodeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, markers: Record<string, unknown>[] = []): Figure {
+export function bodeFigure(
+  r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, markers: Record<string, unknown>[] = [], opt: PlotOptions = {},
+): Figure {
   const mag = curves(r, extras, (t) => t.magDb, 1.6, names).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
   const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
   return {
     data: [...mag, ...markers.map((m) => ({ ...m, yaxis: "y" })), ...phase],
     layout: {
-      xaxis: { ...xAxis, anchor: "y2" },
+      xaxis: { ...xAxisOf(opt), anchor: "y2" },
       yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb", domain: [0.53, 1] },
       yaxis2: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 90, gridcolor: "#e3e7eb", domain: [0, 0.45] },
-      shapes: bandShapes(std), annotations: bandAnnotations(std),
+      ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
     },
   };
 }
 
-export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards): Figure {
+export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards, opt: PlotOptions = {}): Figure {
   const a = r.aligned;
   return {
     data: [{ x: a.freq, y: a.yDb.map((v, i) => v - a.xDb[i]), name: "ΔdB = Y − X", mode: "lines", line: { color: "#44515e", width: 1.2 } }],
     layout: {
-      xaxis: xAxis,
+      xaxis: xAxisOf(opt),
       yaxis: { title: { text: "ΔdB (lần đo − baseline)" }, zeroline: true, zerolinecolor: "#8b959e", gridcolor: "#e3e7eb" },
-      shapes: bandShapes(std), annotations: bandAnnotations(std), showlegend: false,
+      ...backdrop(std, opt, a.freq[0], a.freq[a.freq.length - 1]), showlegend: false,
     },
   };
 }

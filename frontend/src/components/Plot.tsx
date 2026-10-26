@@ -23,7 +23,8 @@ export default function Plot({ data, layout, height = 340 }: Props) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    void Plotly.react(el, data, { ...BASE_LAYOUT, ...layout, height }, {
+    // Plotly writes zoom ranges into the layout it is given: pass a copy so the caller's figure stays as built
+    void Plotly.react(el, data, structuredClone({ ...BASE_LAYOUT, ...layout, height }), {
       responsive: true,
       displaylogo: false,
       locale: "vi",

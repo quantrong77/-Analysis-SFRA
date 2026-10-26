@@ -799,6 +799,89 @@ textarea.yaml-edit {
 .tx-input {
   width: 160px;
 }
+/* chart toolbar: backdrop, axis, markers, reset */
+.plot-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 8px 10px;
+  background: var(--plate);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+}
+.seg {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.seg-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-right: 8px;
+}
+.seg button {
+  border-radius: 0;
+  padding: 4px 11px;
+  font-size: 14px;
+  margin-left: -1px;
+}
+.seg button:first-of-type {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.seg button:last-of-type {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.seg button.on {
+  background: var(--winding);
+  border-color: var(--winding);
+  color: #fff;
+  position: relative;
+}
+.plot-tools > button {
+  margin-left: auto;
+}
+
+/* baseline vs test configuration */
+.setup-compare {
+  margin-top: 10px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+}
+.setup-compare th[scope="row"] {
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.setup-compare select {
+  max-width: 100%;
+}
+.setup-compare tr.differs td {
+  background: var(--amber-tint);
+}
+.tag-differs {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  border: 1px solid currentColor;
+}
+.curve-key {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.curve-key.base {
+  border-top: 2px solid var(--winding);
+}
+.curve-key.test {
+  border-top: 2px dashed var(--test);
+}
 .times {
   margin: 12px 0;
 }

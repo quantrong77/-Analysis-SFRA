@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { bodeFigure, diffFigure, peakMarkers } from "../charts/figures";
+import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type PlotOptions } from "../charts/figures";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
 import { bandLevel, levelConditions } from "../core/dlt911";
-import { dayKey, measurementConfig, type TransformerGroup } from "../core/pairing";
+import { dayKey, measurementConfig, type PairRow, type TransformerGroup } from "../core/pairing";
 import { fmtHz } from "../core/quality";
 import { fmtNum } from "../core/rules";
 import type { Standards } from "../core/standards";
@@ -19,7 +19,19 @@ interface Props {
   rowKey: string;
   traces: Trace[];
   onSelect: (rowKey: string) => void;
+  /** Use another file of this measurement as baseline or test */
+  onPick: (rowKey: string, field: "baselineId" | "testId", id: string) => void;
 }
+
+const BACKDROPS: { id: Backdrop; label: string }[] = [
+  { id: "dlt911", label: "Dải DL/T 911" },
+  { id: "iec", label: "Vùng IEC 60076-18" },
+  { id: "none", label: "Không" },
+];
+
+// verdict colours come from the stylesheet tokens (--v-normal, ...), so the chart matches the tables
+const levelColor = (id: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(`--v-${id}`).trim() || "#44515e";
 
 type Tab = "compare" | "dlt911" | "peaks" | "tb812";
 
@@ -36,10 +48,15 @@ const bandHz = (f: number) =>
 
 const shortName = (t: Trace) => `${sessionLabel(dayKey(t.testDate))} ${t.label}`;
 
-export default function DetailView({ std, group, results, rowKey, traces, onSelect }: Props) {
+export default function DetailView({ std, group, results, rowKey, traces, onSelect, onPick }: Props) {
   const [tab, setTab] = useState<Tab>("compare");
   const [extra, setExtra] = useState<string[]>([]);
   const [showPeaks, setShowPeaks] = useState(true);
+  const [backdrop, setBackdrop] = useState<Backdrop>("dlt911");
+  const [scale, setScale] = useState<"log" | "linear">("log");
+  // remounting the plot is the reset to the full frequency range
+  const [fit, setFit] = useState(0);
+  const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
   const ok = results.filter((r) => r.result);
   const idx = ok.findIndex((r) => r.row.key === rowKey);
   const rr = ok[idx];
@@ -52,8 +69,17 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
   const plots = useMemo(() => {
     if (!r) return null;
     const extras = extra.map((id) => traces.find((t) => t.id === id)).filter(Boolean) as Trace[];
-    return { bode: bodeFigure(r, std, extras, undefined, showPeaks ? peakMarkers(r.peaks) : []), diff: diffFigure(r, std) };
-  }, [r, extra, traces, std, showPeaks]);
+    const bandLabels: PlotOptions["bandLabels"] = {};
+    for (const b of Object.values(r.bands)) {
+      const lv = bandLevel(b.band, b.rxy, std);
+      bandLabels[b.band] = { text: `<b>${b.band}</b><br>R${b.band} ${fmtNum(b.rxy, std, 2)}`, color: levelColor(lv?.id ?? "insufficient") };
+    }
+    const opt: PlotOptions = { backdrop, scale, bandLabels };
+    return {
+      bode: bodeFigure(r, std, extras, undefined, showPeaks ? peakMarkers(r.peaks) : [], opt),
+      diff: diffFigure(r, std, opt),
+    };
+  }, [r, extra, traces, std, showPeaks, backdrop, scale]);
 
   if (!r || !plots) return <div className="view"><p>Chưa chọn phép đo.</p></div>;
 
@@ -91,35 +117,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
           <LevelBadge c={r.classification} /> {r.action}. <InternalTag />
         </p>
         <Warnings items={r.warnings} />
-        <div className="table-wrap">
-        <table className="grid small files-table">
-          <thead>
-            <tr>
-              <th>Đường</th>
-              <th>File</th>
-              <th>Thời điểm đo</th>
-              <th>Đầu đỏ → đầu đen</th>
-              <th>Cấu hình</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[["Baseline", r.baseline], ["Lần đo", r.test]].map(([role, t]) => {
-              const tr = t as Trace;
-              return (
-                <tr key={role as string}>
-                  <td>{role as string}</td>
-                  <td className="file-name">{tr.sourceName}</td>
-                  <td className="nowrap">{fmtDateTime(tr.testDate)}</td>
-                  <td className="nowrap">
-                    {tr.setting.redLead || "–"} → {tr.setting.blackLead || "–"}
-                  </td>
-                  <td>{measurementConfig(tr) === "open" ? "Hở mạch" : `Nối tắt ${tr.setting.shortedTerminal}`.trim()}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        </div>
+        <SetupCompare r={r} std={std} row={rr.row} byId={byId} onPick={(field, id) => onPick(rr.row.key, field, id)} />
       </section>
 
       <div className="tabs" role="tablist" aria-label="Nội dung phép đo">
@@ -141,19 +139,37 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       <section className="tab-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "compare" && (
           <>
-            <div className="row between wrap">
-              <p className="muted small">
-                Biên độ (trên) và góc pha (dưới) chung trục tần số: kéo chọn một vùng để phóng to cả hai. Nền màu: dải LF, MF, HF theo
-                DL/T 911.
-              </p>
+            <div className="plot-tools" role="toolbar" aria-label="Tùy chọn giản đồ">
+              <div className="seg" role="radiogroup" aria-label="Nền giản đồ">
+                <span className="seg-label">Nền</span>
+                {BACKDROPS.map((b) => (
+                  <button key={b.id} role="radio" aria-checked={backdrop === b.id} className={backdrop === b.id ? "on" : ""} onClick={() => setBackdrop(b.id)}>
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+              <div className="seg" role="radiogroup" aria-label="Trục tần số">
+                <span className="seg-label">Trục tần số</span>
+                {(["log", "linear"] as const).map((s) => (
+                  <button key={s} role="radio" aria-checked={scale === s} className={scale === s ? "on" : ""} onClick={() => setScale(s)}>
+                    {s === "log" ? "Log" : "Tuyến tính"}
+                  </button>
+                ))}
+              </div>
               <label className="check small">
-                <input type="checkbox" checked={showPeaks} onChange={(e) => setShowPeaks(e.target.checked)} /> Đánh dấu đỉnh/hố (▲ đỉnh, ▼
-                hố; ký hiệu lớn = dịch ≥ ngưỡng, mất hoặc mới)
+                <input type="checkbox" checked={showPeaks} onChange={(e) => setShowPeaks(e.target.checked)} /> Đỉnh/hố
               </label>
+              <button onClick={() => setFit((n) => n + 1)}>Vừa khung</button>
             </div>
-            <Plot data={plots.bode.data} layout={plots.bode.layout} height={640} />
+            <p className="muted small">
+              Biên độ (trên) và góc pha (dưới) chung trục tần số: kéo chọn một vùng để phóng to cả hai.{" "}
+              {backdrop === "dlt911" && <>Nền: dải LF, MF, HF, ghi Rxy tô màu theo mức Bảng A.1. Căn cứ: {std.dlt911.source}.</>}
+              {backdrop === "iec" && <>Nền: vùng ảnh hưởng điển hình. Căn cứ: {std.iec_zones.source}; {std.iec_zones.note}.</>}
+              {showPeaks && <> Đỉnh/hố: ▲ đỉnh, ▼ hố; ký hiệu lớn là dịch ≥ ngưỡng, mất hoặc mới.</>}
+            </p>
+            <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} />
             <h3>Hiệu số biên độ ΔdB</h3>
-            <Plot data={plots.diff.data} layout={plots.diff.layout} height={260} />
+            <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} />
             {others.length > 0 && (
               <details>
                 <summary>Thêm đường của kỳ khác hoặc pha khác lên đồ thị ({extra.length} đã chọn)</summary>
@@ -198,6 +214,83 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Baseline and test side by side: file, time and test configuration, with differences marked. */
+function SetupCompare({ r, std, row, byId, onPick }: {
+  r: PairResult;
+  std: Standards;
+  row: PairRow;
+  byId: Map<string, Trace>;
+  onPick: (field: "baselineId" | "testId", id: string) => void;
+}) {
+  const codes = new Set(r.warnings.map((w) => w.code));
+  const cfg = (t: Trace) => (measurementConfig(t) === "open" ? "Hở mạch" : "Nối tắt");
+  const fields = std.quality.pair.compare_fields as Record<string, string>;
+  const KEYS: Record<string, (t: Trace) => string> = {
+    measurement_type: cfg,
+    shorted_terminal: (t) => t.setting.shortedTerminal,
+    grounded_terminal: (t) => t.setting.groundedTerminal,
+    ltc_position: (t) => t.setting.ltcPosition,
+    detc_position: (t) => t.setting.detcPosition,
+  };
+  const rows: { label: string; get: (t: Trace) => string; differs: boolean }[] = [
+    { label: "Thời điểm đo", get: (t) => fmtDateTime(t.testDate), differs: false },
+    {
+      label: "Đầu đỏ → đầu đen",
+      get: (t) => `${t.setting.redLead || "–"} → ${t.setting.blackLead || "–"}`,
+      differs: codes.has("reversed_leads") || codes.has("different_leads"),
+    },
+    ...Object.entries(fields).map(([attr, label]) => ({ label, get: KEYS[attr] ?? (() => ""), differs: codes.has(`diff_${attr}`) })),
+  ];
+  const picker = (field: "baselineId" | "testId", cur: Trace, other: Trace) => (
+    <select aria-label={field === "baselineId" ? "File baseline" : "File lần đo"} value={cur.id} onChange={(e) => onPick(field, e.target.value)}>
+      {row.candidates
+        .filter((id) => id !== other.id)
+        .map((id) => {
+          const t = byId.get(id)!;
+          return (
+            <option key={id} value={id}>
+              {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
+            </option>
+          );
+        })}
+    </select>
+  );
+  return (
+    <div className="table-wrap">
+      <table className="grid small setup-compare">
+        <thead>
+          <tr>
+            <th></th>
+            <th>
+              <span className="curve-key base" aria-hidden="true" /> Baseline
+            </th>
+            <th>
+              <span className="curve-key test" aria-hidden="true" /> Lần đo
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">File</th>
+            <td>{picker("baselineId", r.baseline, r.test)}</td>
+            <td>{picker("testId", r.test, r.baseline)}</td>
+          </tr>
+          {rows.map((x) => (
+            <tr key={x.label} className={x.differs ? "differs" : ""}>
+              <th scope="row">
+                {x.label}
+                {x.differs && <span className="tag-differs">Khác nhau</span>}
+              </th>
+              <td>{x.get(r.baseline) || "–"}</td>
+              <td>{x.get(r.test) || "–"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
