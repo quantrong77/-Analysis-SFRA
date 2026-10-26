@@ -27,7 +27,11 @@ export interface ReportInfo {
   decimalComma: boolean;
 }
 
-export const INFO_FIELDS: { key: keyof ReportInfo; label: string; wide?: boolean }[] = [
+/**
+ * Report header fields. The two dates follow the sessions being compared (`fromSession`): they are
+ * edited where the measurement dates are (Import, "Sửa ngày"), so every view shows the same date.
+ */
+export const INFO_FIELDS: { key: keyof ReportInfo; label: string; wide?: boolean; fromSession?: boolean }[] = [
   { key: "name", label: "Tên MBA" },
   { key: "substation", label: "Trạm biến áp" },
   { key: "manufacturer", label: "Hãng sản xuất" },
@@ -35,8 +39,8 @@ export const INFO_FIELDS: { key: keyof ReportInfo; label: string; wide?: boolean
   { key: "year", label: "Năm sản xuất" },
   { key: "voltage", label: "Cấp điện áp" },
   { key: "power", label: "Công suất" },
-  { key: "baselineDate", label: "Ngày đo cơ sở" },
-  { key: "testDate", label: "Ngày đo hiện tại" },
+  { key: "baselineDate", label: "Ngày đo cơ sở", fromSession: true },
+  { key: "testDate", label: "Ngày đo hiện tại", fromSession: true },
   { key: "reason", label: "Lý do đo" },
   { key: "testedBy", label: "Người thực hiện" },
   { key: "instrument", label: "Thiết bị đo" },

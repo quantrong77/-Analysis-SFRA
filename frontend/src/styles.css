@@ -848,6 +848,11 @@ textarea.yaml-edit {
   color: var(--ink);
   font-size: 15px;
 }
+/* a value that follows another setting: shown, not typed */
+.field input[readonly] {
+  background: var(--plate);
+  border-color: var(--rule);
+}
 .tx-input {
   width: 160px;
 }

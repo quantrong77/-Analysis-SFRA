@@ -27,4 +27,17 @@ describe("thời điểm đo chưa xác định", () => {
     expect([g.baselineSession, g.testSession]).toEqual(["2019-11-16", "2024-05-01"]);
     expect([g.rows[0].baselineId, g.rows[0].testId]).toEqual([undated.id, dated.id]);
   });
+
+  it("sửa ngày của kỳ baseline đang chọn thì lựa chọn đi theo ngày mới, không nhảy về kỳ mặc định", () => {
+    const old = trace("A-a", new Date(2019, 10, 16));
+    const mid = trace("A-a", new Date(2026, 4, 26, 11, 13));
+    const now = trace("A-a", new Date(2027, 5, 1));
+    const [g0] = groupTraces([old, mid, now]);
+    const picked = { ...g0, baselineSession: "2026-05-26", rows: g0.rows.map((r) => ({ ...r, baselineId: mid.id })) };
+    const moved = { ...mid, testDate: new Date(2026, 4, 10, 11, 13) };
+    const [g] = regroup([old, moved, now], [picked]);
+    expect(g.sessions).toEqual(["2019-11-16", "2026-05-10", "2027-06-01"]);
+    expect([g.baselineSession, g.testSession]).toEqual(["2026-05-10", "2027-06-01"]);
+    expect([g.rows[0].baselineId, g.rows[0].testId]).toEqual([mid.id, now.id]);
+  });
 });

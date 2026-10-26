@@ -439,7 +439,10 @@ export default function App() {
 
   const needsResults = (v: View) => v === "results" || v === "detail" || v === "report";
   const disabled = (v: View) => (needsResults(v) && !results.some((r) => r.result)) || ((v === "trend" || v === "compare") && !live.length);
-  const info = group ? { ...defaultInfo(group, traces, std), ...ws.infoEdits[group.key] } : null;
+  // dates typed into the report before they followed the sessions are ignored: the sessions decide
+  const info = group
+    ? (({ baselineDate: _b, testDate: _t, ...edits }) => ({ ...defaultInfo(group, traces, std), ...edits }))(ws.infoEdits[group.key] ?? {})
+    : null;
   const setMode = (m: GridMode) => setWs((w) => ({ ...w, mode: m }));
 
   const plateViews: View[] = ["results", "detail", "trend", "compare", "report"];

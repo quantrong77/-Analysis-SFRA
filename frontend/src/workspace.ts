@@ -22,21 +22,35 @@ export function regroup(traces: Trace[], previous: TransformerGroup[]): Transfor
   return groupTraces(traces).map((g) => {
     const p = prev.get(g.key);
     if (!p) return g;
+    const list = traces.filter((t) => t.transformerKey === g.key);
+    // a chosen session whose date was edited no longer exists under its old day: follow its files
+    // to the day they now carry, so the choice moves with them instead of falling back to the default
+    const day = new Map(list.map((t) => [t.id, dayKey(t.testDate)]));
+    const follow = (s: string, ids: (string | null)[]) => {
+      if (g.sessions.includes(s)) return s;
+      const counts = new Map<string, number>();
+      for (const id of ids) {
+        const d = id ? day.get(id) : undefined;
+        if (d) counts.set(d, (counts.get(d) ?? 0) + 1);
+      }
+      return [...counts].sort((x, y) => y[1] - x[1])[0]?.[0] ?? s;
+    };
+    const pBaseline = follow(p.baselineSession, p.rows.map((r) => r.baselineId));
+    const pTest = follow(p.testSession, p.rows.map((r) => r.testId));
     // keep the user's sessions unless they no longer exist, are the undated session while dated
     // ones exist, or were a single session and a second one has appeared (e.g. a date was entered)
     const known = g.sessions.filter((s) => s !== UNKNOWN_DAY);
-    const stale = p.baselineSession === p.testSession && known.length > 1;
+    const stale = pBaseline === pTest && known.length > 1;
     const keep = (s: string) => !stale && g.sessions.includes(s) && (s !== UNKNOWN_DAY || known.length === 0);
-    const baselineSession = keep(p.baselineSession) ? p.baselineSession : g.baselineSession;
-    const testSession = keep(p.testSession) ? p.testSession : g.testSession;
-    const list = traces.filter((t) => t.transformerKey === g.key);
+    const baselineSession = keep(pBaseline) ? pBaseline : g.baselineSession;
+    const testSession = keep(pTest) ? pTest : g.testSession;
     const rows = buildRows(list, baselineSession, testSession).map((r) => {
       const old = p.rows.find((o) => o.key === r.key);
       // files added to or removed from this measurement: the user's earlier choice no longer applies
       const sameFiles = old && old.candidates.length === r.candidates.length && old.candidates.every((id) => r.candidates.includes(id));
       if (!old || !sameFiles) return r;
       const ok = (id: string | null) => id === null || r.candidates.includes(id);
-      const sameSessions = p.baselineSession === baselineSession && p.testSession === testSession;
+      const sameSessions = pBaseline === baselineSession && pTest === testSession;
       return sameSessions && ok(old.baselineId) && ok(old.testId) ? { ...r, baselineId: old.baselineId, testId: old.testId } : r;
     });
     return { ...g, baselineSession, testSession, rows };

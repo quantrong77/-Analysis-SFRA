@@ -84,8 +84,11 @@ export default function ReportView({ std, results, info, onInfo, onReset }: Prop
               <span>{f.label}</span>
               <input
                 value={String(info[f.key])}
+                readOnly={f.fromSession}
+                title={f.fromSession ? "Theo kỳ đo đang chọn; sửa ngày đo ở mục Nhập dữ liệu (Sửa ngày)" : undefined}
                 onChange={(e) => onInfo({ ...info, [f.key]: e.target.value })}
               />
+              {f.fromSession && <span className="small">Theo kỳ đo đang chọn. Sửa ở Nhập dữ liệu, nút Sửa ngày.</span>}
             </label>
           ))}
           <label className="check field-row">
