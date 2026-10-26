@@ -1,6 +1,6 @@
 /** Render the Bode figures of each pair to PNG for the report (browser only). */
 import Plotly from "plotly.js-basic-dist-min";
-import { magnitudeFigure, phaseFigure, REPORT_LAYOUT, type Figure } from "../charts/figures";
+import { magnitudeFigure, phaseFigure, REPORT_LAYOUT, type Figure, type TraceColors } from "../charts/figures";
 import type { PairResult } from "../core/analysis";
 import type { Standards } from "../core/standards";
 import type { PairImages } from "./docxBuilder";
@@ -20,13 +20,14 @@ async function png(fig: Figure): Promise<Uint8Array> {
 
 export async function renderPairImages(
   results: PairResult[], std: Standards, key: (r: PairResult) => string, onProgress: (done: number, total: number) => void,
+  colors: TraceColors = {},
 ): Promise<Map<string, PairImages>> {
   const out = new Map<string, PairImages>();
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     out.set(key(r), {
-      magnitude: await png(magnitudeFigure(r, std)),
-      phase: await png(phaseFigure(r, std)),
+      magnitude: await png(magnitudeFigure(r, std, [], undefined, { colors })),
+      phase: await png(phaseFigure(r, std, [], undefined, { colors })),
       width: IMG_WIDTH,
       height: IMG_HEIGHT,
     });

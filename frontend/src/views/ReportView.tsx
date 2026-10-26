@@ -8,6 +8,7 @@ import type { Standards } from "../core/standards";
 import { buildReport, fileName } from "../report/docxBuilder";
 import { INFO_FIELDS, type ReportInfo } from "../report/info";
 import type { RowResult } from "../workspace";
+import type { TraceColors } from "../charts/figures";
 
 interface Props {
   std: Standards;
@@ -16,9 +17,11 @@ interface Props {
   info: ReportInfo;
   onInfo: (info: ReportInfo) => void;
   onReset: () => void;
+  /** Curve colours chosen by the user, used in the report charts too */
+  colors: TraceColors;
 }
 
-export default function ReportView({ std, results, info, onInfo, onReset }: Props) {
+export default function ReportView({ std, results, info, onInfo, onReset, colors }: Props) {
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ok = results.flatMap((r) => (r.result ? [r.result] : []));
@@ -33,7 +36,7 @@ export default function ReportView({ std, results, info, onInfo, onReset }: Prop
       setProgress("Đang vẽ giản đồ…");
       const { renderPairImages } = await import("../report/images");
       const key = (r: PairResult) => `${r.index ?? ""}|${r.label}`;
-      const images = await renderPairImages(ok, std, key, (d, t) => setProgress(`Đang vẽ giản đồ ${d}/${t}…`));
+      const images = await renderPairImages(ok, std, key, (d, t) => setProgress(`Đang vẽ giản đồ ${d}/${t}…`), colors);
       setProgress("Đang tạo file Word…");
       const doc = buildReport({ std, info, results: ok, skipped, conclusion, images, imageKey: key, generatedAt: new Date() });
       const blob = await Packer.toBlob(doc);

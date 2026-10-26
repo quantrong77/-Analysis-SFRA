@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type PlotOptions } from "../charts/figures";
+import { bodeFigure, curveColor, diffFigure, extraName, peakMarkers, type Backdrop, type PlotOptions, type TraceColors } from "../charts/figures";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
-import PlotTools from "../components/PlotTools";
+import PlotTools, { type CurveSwatch } from "../components/PlotTools";
 import ZoneInfo from "../components/ZoneInfo";
 import { DateTimeInput } from "../components/DateTime";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
@@ -26,6 +26,9 @@ interface Props {
   onPick: (rowKey: string, field: "baselineId" | "testId", id: string) => void;
   /** Measurement times entered by the user (null restores the file's) */
   onSetDates: (edits: [string, Date | null][]) => void;
+  /** Curve colours chosen by the user, per trace id */
+  colors: TraceColors;
+  onColor: (traceId: string, color: string | null) => void;
 }
 
 // verdict colours come from the stylesheet tokens (--v-normal, ...), so the chart matches the tables
@@ -43,7 +46,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const shortName = (t: Trace) => `${sessionLabel(dayKey(t.testDate))} ${t.label}`;
 
-export default function DetailView({ std, group, results, rowKey, traces, onSelect, onPick, onSetDates }: Props) {
+export default function DetailView({ std, group, results, rowKey, traces, onSelect, onPick, onSetDates, colors, onColor }: Props) {
   const [tab, setTab] = useState<Tab>("compare");
   const [extra, setExtra] = useState<string[]>([]);
   const [showPeaks, setShowPeaks] = useState(true);
@@ -72,12 +75,19 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       const lv = bandLevel(b.band, b.rxy, std);
       bandLabels[b.band] = { text: `<b>${b.band}</b><br>R${b.band} ${fmtNum(b.rxy, std, 2)}`, color: levelColor(lv?.id ?? "insufficient") };
     }
-    const opt: PlotOptions = { backdrop, scale, bandLabels };
+    const opt: PlotOptions = { backdrop, scale, bandLabels, colors };
+    const pair: [string, string] = [curveColor(r.baseline, "baseline", colors), curveColor(r.test, "test", colors)];
+    const swatches: CurveSwatch[] = [
+      { id: r.baseline.id, name: "Baseline", color: pair[0], custom: r.baseline.id in colors },
+      { id: r.test.id, name: "Lần đo", color: pair[1], dashed: true, custom: r.test.id in colors },
+      ...extras.map((t, i) => ({ id: t.id, name: extraName(t), color: curveColor(t, i, colors), custom: t.id in colors })),
+    ];
     return {
-      bode: bodeFigure(r, std, extras, undefined, showPeaks ? peakMarkers(r.peaks) : [], opt),
+      bode: bodeFigure(r, std, extras, undefined, showPeaks ? peakMarkers(r.peaks, undefined, pair) : [], opt),
       diff: diffFigure(r, std, opt),
+      swatches,
     };
-  }, [r, extra, traces, std, showPeaks, backdrop, scale]);
+  }, [r, extra, traces, std, showPeaks, backdrop, scale, colors]);
 
   if (!r || !plots) return <div className="view"><p>Chưa chọn phép đo.</p></div>;
 
@@ -122,6 +132,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
           byId={byId}
           onPick={(field, id) => onPick(rr.row.key, field, id)}
           onSetDate={(id, d) => onSetDates([[id, d]])}
+          colors={colors}
         />
       </section>
 
@@ -156,6 +167,8 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
               onShowPeaks={setShowPeaks}
               onFit={() => setFit((n) => n + 1)}
               partitionNote={backdrop === "dlt911" ? "Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1." : undefined}
+              curves={plots.swatches}
+              onColor={onColor}
             />
             <ZoneInfo std={std} freq={hoverF} />
             <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} />
@@ -210,13 +223,14 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
 }
 
 /** Baseline and test side by side: file, time and test configuration, with differences marked. */
-function SetupCompare({ r, std, row, byId, onPick, onSetDate }: {
+function SetupCompare({ r, std, row, byId, onPick, onSetDate, colors }: {
   r: PairResult;
   std: Standards;
   row: PairRow;
   byId: Map<string, Trace>;
   onPick: (field: "baselineId" | "testId", id: string) => void;
   onSetDate: (traceId: string, d: Date | null) => void;
+  colors: TraceColors;
 }) {
   const codes = new Set(r.warnings.map((w) => w.code));
   const cfg = (t: Trace) => (measurementConfig(t) === "open" ? "Hở mạch" : "Nối tắt");
@@ -257,10 +271,10 @@ function SetupCompare({ r, std, row, byId, onPick, onSetDate }: {
           <tr>
             <th></th>
             <th>
-              <span className="curve-key base" aria-hidden="true" /> Baseline
+              <span className="curve-key base" style={{ borderTopColor: curveColor(r.baseline, "baseline", colors) }} aria-hidden="true" /> Baseline
             </th>
             <th>
-              <span className="curve-key test" aria-hidden="true" /> Lần đo
+              <span className="curve-key test" style={{ borderTopColor: curveColor(r.test, "test", colors) }} aria-hidden="true" /> Lần đo
             </th>
           </tr>
         </thead>

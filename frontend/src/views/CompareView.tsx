@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { bodeFigure, diffFigure, peakMarkers, type Backdrop, type CurveNames, type PlotOptions } from "../charts/figures";
+import { bodeFigure, curveColor, diffFigure, peakMarkers, type Backdrop, type CurveNames, type PlotOptions, type TraceColors } from "../charts/figures";
 import Plot from "../components/Plot";
-import PlotTools from "../components/PlotTools";
+import PlotTools, { type CurveSwatch } from "../components/PlotTools";
 import ZoneInfo from "../components/ZoneInfo";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import { bankTraces, compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
@@ -17,12 +17,21 @@ interface Props {
   group: TransformerGroup;
   traces: Trace[];
   mode: GridMode;
+  /** Curve colours chosen by the user, per trace id */
+  colors: TraceColors;
+  onColor: (traceId: string, color: string | null) => void;
 }
 
 const traceName = (t: Trace) => `${t.index !== null ? `${t.index} ` : ""}${t.label}, MBA ${t.transformerKey}, ${sessionLabel(dayKey(t.testDate))}`;
 const phaseName = (t: Trace) => phasePattern(t.label)?.phase ?? t.label;
 
-function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards; names: CurveNames }) {
+function ComparisonDetail({ c, std, names, colors, onColor }: {
+  c: RefComparison;
+  std: Standards;
+  names: CurveNames;
+  colors: TraceColors;
+  onColor: (traceId: string, color: string | null) => void;
+}) {
   const [partition, setPartition] = useState<Backdrop>("iec");
   const [showPartition, setShowPartition] = useState(true);
   const [hoverF, setHoverF] = useState<number | null>(null);
@@ -31,10 +40,15 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
   const [showPeaks, setShowPeaks] = useState(true);
   const [fit, setFit] = useState(0);
   const figs = useMemo(() => {
-    const opt: PlotOptions = { backdrop, scale };
-    const markers = showPeaks ? peakMarkers(c.peaks, names) : [];
-    return { bode: bodeFigure({ baseline: c.a, test: c.b }, std, [], names, markers, opt), diff: diffFigure(c, std, opt) };
-  }, [c, std, names, backdrop, scale, showPeaks]);
+    const opt: PlotOptions = { backdrop, scale, colors };
+    const pair: [string, string] = [curveColor(c.a, "baseline", colors), curveColor(c.b, "test", colors)];
+    const markers = showPeaks ? peakMarkers(c.peaks, names, pair) : [];
+    const swatches: CurveSwatch[] = [
+      { id: c.a.id, name: names[0], color: pair[0], custom: c.a.id in colors },
+      { id: c.b.id, name: names[1], color: pair[1], dashed: true, custom: c.b.id in colors },
+    ];
+    return { bode: bodeFigure({ baseline: c.a, test: c.b }, std, [], names, markers, opt), diff: diffFigure(c, std, opt), pair, swatches };
+  }, [c, std, names, backdrop, scale, showPeaks, colors]);
   return (
     <section className="panel">
       <div className="row between wrap">
@@ -48,10 +62,10 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
       </p>
       <div className="files muted small">
         <div>
-          Đường 1 (xanh liền): {traceName(c.a)}. File <span className="file-name">{c.a.sourceName}</span>
+          <span className="curve-key base" style={{ borderTopColor: figs.pair[0] }} aria-hidden="true" /> Đường 1 (nét liền): {traceName(c.a)}. File <span className="file-name">{c.a.sourceName}</span>
         </div>
         <div>
-          Đường 2 (đỏ đứt): {traceName(c.b)}. File <span className="file-name">{c.b.sourceName}</span>
+          <span className="curve-key test" style={{ borderTopColor: figs.pair[1] }} aria-hidden="true" /> Đường 2 (nét đứt): {traceName(c.b)}. File <span className="file-name">{c.b.sourceName}</span>
         </div>
         <div>Chế độ căn lưới: {c.aligned.modeLabel}</div>
       </div>
@@ -66,6 +80,8 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
         showPeaks={showPeaks}
         onShowPeaks={setShowPeaks}
         onFit={() => setFit((n) => n + 1)}
+        curves={figs.swatches}
+        onColor={onColor}
       />
       <ZoneInfo std={std} freq={hoverF} />
       <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} />
@@ -81,7 +97,7 @@ function ComparisonDetail({ c, std, names }: { c: RefComparison; std: Standards;
   );
 }
 
-export default function CompareView({ std, group, traces, mode }: Props) {
+export default function CompareView({ std, group, traces, mode, colors, onColor }: Props) {
   const bank = useMemo(() => bankTraces(traces, group.key), [traces, group.key]);
   const mine = bank.traces;
   const [session, setSession] = useState(group.testSession);
@@ -245,7 +261,7 @@ export default function CompareView({ std, group, traces, mode }: Props) {
       </section>
 
       {current?.err && <p className="err">{current.err}</p>}
-      {current?.c && names && <ComparisonDetail c={current.c} std={std} names={names} />}
+      {current?.c && names && <ComparisonDetail c={current.c} std={std} names={names} colors={colors} onColor={onColor} />}
     </div>
   );
 }

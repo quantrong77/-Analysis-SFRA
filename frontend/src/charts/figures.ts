@@ -19,6 +19,14 @@ export const BASELINE_COLOR = "#1e4e79";
 export const TEST_COLOR = "#c0392b";
 const EXTRA_COLORS = ["#5e4794", "#2e7d4f", "#8f6a00", "#0f7c8c", "#9c3d6f", "#59636e"];
 
+/** Colours chosen by the user, per trace id; a trace without one keeps the colour of its role. */
+export type TraceColors = Record<string, string>;
+
+/** Colour of a curve: the user's choice for that trace, else baseline blue, test red, or the extras palette. */
+export function curveColor(t: Trace, role: "baseline" | "test" | number, colors?: TraceColors): string {
+  return colors?.[t.id] ?? (role === "baseline" ? BASELINE_COLOR : role === "test" ? TEST_COLOR : EXTRA_COLORS[role % EXTRA_COLORS.length]);
+}
+
 const sessionLabel = (t: Trace) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey(t.testDate));
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "?";
@@ -60,6 +68,8 @@ export interface PlotOptions {
   bandLabels?: Record<string, { text: string; color: string }>;
   /** Paper heights (0 bottom, 1 top) where region labels are written; one per stacked plot */
   labelRows?: number[];
+  /** Curve colours chosen by the user, per trace id */
+  colors?: TraceColors;
 }
 
 interface Region {
@@ -153,22 +163,25 @@ type TwoTraces = Pick<PairResult, "baseline" | "test">;
 /** Curve names: baseline/test by default, or e.g. ["Pha A", "Pha B"] for a reference comparison */
 export type CurveNames = [string, string];
 
-function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], width: number, names?: CurveNames) {
+/** Name shown in the legend for an extra curve (another session or phase) */
+export const extraName = (t: Trace) => `${sessionLabel(t)} ${t.label}`;
+
+function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], width: number, names?: CurveNames, colors?: TraceColors) {
   return [
     { x: r.baseline.freq, y: y(r.baseline), name: names?.[0] ?? `Baseline ${sessionLabel(r.baseline)}`, mode: "lines",
-      line: { color: BASELINE_COLOR, width } },
+      line: { color: curveColor(r.baseline, "baseline", colors), width } },
     { x: r.test.freq, y: y(r.test), name: names?.[1] ?? `Lần đo ${sessionLabel(r.test)}`, mode: "lines",
-      line: { color: TEST_COLOR, width, dash: "dash" } },
+      line: { color: curveColor(r.test, "test", colors), width, dash: "dash" } },
     ...extras.map((t, i) => ({
-      x: t.freq, y: y(t), name: `${sessionLabel(t)} ${t.label}`, mode: "lines",
-      line: { width: 1.2, color: EXTRA_COLORS[i % EXTRA_COLORS.length] },
+      x: t.freq, y: y(t), name: extraName(t), mode: "lines",
+      line: { width: 1.2, color: curveColor(t, i, colors) },
     })),
   ];
 }
 
 export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
-    data: curves(r, extras, (t) => t.magDb, 1.6, names),
+    data: curves(r, extras, (t) => t.magDb, 1.6, names, opt.colors),
     layout: {
       xaxis: xAxisOf(opt), yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb" },
       ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
@@ -178,7 +191,7 @@ export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = 
 
 export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
-    data: curves(r, extras, (t) => t.phaseDeg, 1.4, names),
+    data: curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt.colors),
     layout: {
       xaxis: xAxisOf(opt), yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e3e7eb" },
       ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
@@ -193,8 +206,8 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
 export function bodeFigure(
   r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, markers: Record<string, unknown>[] = [], opt: PlotOptions = {},
 ): Figure {
-  const mag = curves(r, extras, (t) => t.magDb, 1.6, names).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
-  const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
+  const mag = curves(r, extras, (t) => t.magDb, 1.6, names, opt.colors).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
+  const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt.colors).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
   return {
     data: [...mag, ...markers.map((m) => ({ ...m, yaxis: "y" })), ...phase],
     layout: {
@@ -218,8 +231,10 @@ export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards, opt: 
   };
 }
 
-/** Marker traces for detected peaks / notches; flagged shifts and lost/new extrema drawn larger. */
-export function peakMarkers(pa: PeakAnalysis, names: CurveNames = ["baseline", "lần đo"]): Record<string, unknown>[] {
+/** Marker traces for detected peaks / notches, in the colour of their curve; flagged shifts and lost/new extrema drawn larger. */
+export function peakMarkers(
+  pa: PeakAnalysis, names: CurveNames = ["baseline", "lần đo"], colors: [string, string] = [BASELINE_COLOR, TEST_COLOR],
+): Record<string, unknown>[] {
   const flagged = new Set(pa.matches.filter((m) => m.status !== "ok").flatMap((m) => [m.ref, m.test]).filter(Boolean));
   const trace = (list: Extremum[], name: string, color: string) => ({
     x: list.map((e) => e.freq), y: list.map((e) => e.db), name, mode: "markers", hoverinfo: "x+y+name",
@@ -228,7 +243,7 @@ export function peakMarkers(pa: PeakAnalysis, names: CurveNames = ["baseline", "
       size: list.map((e) => (flagged.has(e) ? 11 : 6)), line: { width: list.map((e) => (flagged.has(e) ? 1.5 : 0)), color: "#111827" },
     },
   });
-  return [trace(pa.ref, `Đỉnh/hố ${names[0]}`, BASELINE_COLOR), trace(pa.test, `Đỉnh/hố ${names[1]}`, TEST_COLOR)];
+  return [trace(pa.ref, `Đỉnh/hố ${names[0]}`, colors[0]), trace(pa.test, `Đỉnh/hố ${names[1]}`, colors[1])];
 }
 
 /** Layout overrides for static images in the report (print fonts, white background). */

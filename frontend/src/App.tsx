@@ -393,6 +393,18 @@ export default function App() {
     [],
   );
 
+  /** Curve colour chosen for a trace; null goes back to the colour of its role */
+  const setTraceColor = useCallback(
+    (id: string, color: string | null) =>
+      setWs((w) => {
+        const traceColors = { ...w.traceColors };
+        if (color) traceColors[id] = color;
+        else delete traceColors[id];
+        return { ...w, traceColors };
+      }),
+    [],
+  );
+
   const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
   // Groups are rebuilt in an effect after the traces change, one render later. Until then, drop
   // files that are no longer loaded (just removed) so no screen looks up a file that is gone.
@@ -610,6 +622,8 @@ export default function App() {
             traces={traces}
             onSelect={setRowKey}
             onSetDates={setDates}
+            colors={ws.traceColors}
+            onColor={setTraceColor}
             onPick={(rowKey, field, id) =>
               setGroups((gs) =>
                 gs.map((g) => (g.key === group.key ? { ...g, rows: g.rows.map((x) => (x.key === rowKey ? { ...x, [field]: id } : x)) } : g)),
@@ -620,7 +634,7 @@ export default function App() {
         {view === "trend" && group && (
           <TrendView std={std} group={group} traces={traces} mode={mode} />
         )}
-        {view === "compare" && group && <CompareView std={std} group={group} traces={traces} mode={mode} />}
+        {view === "compare" && group && <CompareView std={std} group={group} traces={traces} mode={mode} colors={ws.traceColors} onColor={setTraceColor} />}
         {view === "report" && group && info && (
           <ReportView
             std={std}
@@ -633,6 +647,7 @@ export default function App() {
               setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: diff } }));
             }}
             onReset={() => setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: {} } }))}
+            colors={ws.traceColors}
           />
         )}
         {view === "standards" && (

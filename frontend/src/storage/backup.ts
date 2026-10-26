@@ -56,6 +56,7 @@ export function mergeWorkspace(cur: WorkspaceState, inc: WorkspaceState): Worksp
     profiles: [...cur.profiles.filter((p) => !inc.profiles.some((q) => q.id === p.id)), ...inc.profiles],
     txEdits: { ...cur.txEdits, ...inc.txEdits },
     measurementEdits: { ...cur.measurementEdits, ...inc.measurementEdits },
+    traceColors: { ...cur.traceColors, ...inc.traceColors },
     customRules: inc.customRules ?? cur.customRules,
   };
 }
@@ -79,6 +80,7 @@ export function workspaceFor(ws: WorkspaceState, groupKeys: string[], shas: Set<
     profiles: ws.profiles,
     txEdits: pick(ws.txEdits, (k) => shas.has(k)),
     measurementEdits: pick(ws.measurementEdits, ofFile),
+    traceColors: pick(ws.traceColors, ofFile),
     customRules: null,
   };
 }
@@ -95,5 +97,6 @@ export function workspaceWithout(ws: WorkspaceState, groupKeys: string[], shas: 
     sessions: drop(ws.sessions, mine.sessions),
     txEdits: drop(ws.txEdits, mine.txEdits),
     measurementEdits: drop(ws.measurementEdits, mine.measurementEdits),
+    traceColors: drop(ws.traceColors, mine.traceColors),
   };
 }

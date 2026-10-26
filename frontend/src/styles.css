@@ -1075,6 +1075,35 @@ textarea.yaml-edit {
   vertical-align: middle;
   margin-right: 4px;
 }
+/* colour of each curve, picked by the user */
+.curve-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 6px 0 2px;
+  font-size: 13.5px;
+}
+.curve-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.curve-color label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.curve-color input[type="color"] {
+  width: 26px;
+  height: 22px;
+  padding: 0 1px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  cursor: pointer;
+}
 .curve-key.base {
   border-top: 2px solid var(--winding);
 }

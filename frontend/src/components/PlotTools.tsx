@@ -16,6 +16,19 @@ interface Props {
   onFit: () => void;
   /** Extra line under the key, e.g. what the DL/T 911 band labels mean */
   partitionNote?: string;
+  /** Curves on the plot, each with its colour, so the user can pick another one */
+  curves?: CurveSwatch[];
+  /** New colour of a trace's curve; null goes back to the default colour */
+  onColor?: (traceId: string, color: string | null) => void;
+}
+
+export interface CurveSwatch {
+  id: string;
+  name: string;
+  color: string;
+  dashed?: boolean;
+  /** colour chosen by the user (not the default one) */
+  custom: boolean;
 }
 
 const range = (lo: number, hi: number) =>
@@ -62,6 +75,25 @@ export default function PlotTools(p: Props) {
         </label>
         <button onClick={p.onFit}>Vừa khung</button>
       </div>
+      {p.curves && p.curves.length > 0 && (
+        <div className="curve-colors" role="group" aria-label="Màu đường đo">
+          <span className="seg-label">Màu đường đo</span>
+          {p.curves.map((c) => (
+            <span key={c.id} className="curve-color">
+              <label title="Bấm để chọn màu">
+                <input type="color" value={c.color} aria-label={`Màu của đường ${c.name}`} onChange={(e) => p.onColor?.(c.id, e.target.value)} />
+                <span className={c.dashed ? "curve-key test" : "curve-key base"} style={{ borderTopColor: c.color }} aria-hidden="true" />
+                {c.name}
+              </label>
+              {c.custom && (
+                <button type="button" className="link" onClick={() => p.onColor?.(c.id, null)}>
+                  Mặc định
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
       {p.showPartition && current && (
         <>
           <ul className="zone-key" aria-label={`Phân vùng tần số: ${current.label}`}>

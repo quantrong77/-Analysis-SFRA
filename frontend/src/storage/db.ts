@@ -32,12 +32,14 @@ export interface WorkspaceState {
   txEdits: Record<string, string>;
   /** trace id -> STT, label and shorted terminals entered by the user so the trace pairs correctly */
   measurementEdits: Record<string, MeasurementId>;
+  /** trace id -> curve colour (#rrggbb) chosen by the user */
+  traceColors: Record<string, string>;
   /** user-edited standards.yaml text; null = built-in ruleset */
   customRules: string | null;
 }
 
 export const emptyWorkspace = (): WorkspaceState => ({
-  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, measurementEdits: {}, customRules: null,
+  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, measurementEdits: {}, traceColors: {}, customRules: null,
 });
 
 const DB_NAME = "sfra-analyzer";
