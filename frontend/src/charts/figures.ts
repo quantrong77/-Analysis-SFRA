@@ -70,6 +70,8 @@ export interface PlotOptions {
   labelRows?: number[];
   /** Curve colours chosen by the user, per trace id */
   colors?: TraceColors;
+  /** Width of the measured curves in px (extra curves are drawn a little thinner) */
+  lineWidth?: number;
 }
 
 interface Region {
@@ -166,7 +168,10 @@ export type CurveNames = [string, string];
 /** Name shown in the legend for an extra curve (another session or phase) */
 export const extraName = (t: Trace) => `${sessionLabel(t)} ${t.label}`;
 
-function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], width: number, names?: CurveNames, colors?: TraceColors) {
+function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], base: number, names?: CurveNames, opt: PlotOptions = {}) {
+  const { colors } = opt;
+  const width = opt.lineWidth ?? base;
+  const thin = opt.lineWidth ? Math.max(1, opt.lineWidth * 0.75) : 1.2;
   return [
     { x: r.baseline.freq, y: y(r.baseline), name: names?.[0] ?? `Baseline ${sessionLabel(r.baseline)}`, mode: "lines",
       line: { color: curveColor(r.baseline, "baseline", colors), width } },
@@ -174,14 +179,14 @@ function curves(r: TwoTraces, extras: Trace[], y: (t: Trace) => number[], width:
       line: { color: curveColor(r.test, "test", colors), width, dash: "dash" } },
     ...extras.map((t, i) => ({
       x: t.freq, y: y(t), name: extraName(t), mode: "lines",
-      line: { width: 1.2, color: curveColor(t, i, colors) },
+      line: { width: thin, color: curveColor(t, i, colors) },
     })),
   ];
 }
 
 export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
-    data: curves(r, extras, (t) => t.magDb, 1.6, names, opt.colors),
+    data: curves(r, extras, (t) => t.magDb, 1.6, names, opt),
     layout: {
       xaxis: xAxisOf(opt), yaxis: { title: { text: "Biên độ (dB)" }, gridcolor: "#e3e7eb" },
       ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
@@ -191,7 +196,7 @@ export function magnitudeFigure(r: TwoTraces, std: Standards, extras: Trace[] = 
 
 export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, opt: PlotOptions = {}): Figure {
   return {
-    data: curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt.colors),
+    data: curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt),
     layout: {
       xaxis: xAxisOf(opt), yaxis: { title: { text: "Góc pha (°)" }, range: [-185, 185], dtick: 45, gridcolor: "#e3e7eb" },
       ...backdrop(std, opt, ...span([r.baseline, r.test, ...extras])),
@@ -206,8 +211,8 @@ export function phaseFigure(r: TwoTraces, std: Standards, extras: Trace[] = [], 
 export function bodeFigure(
   r: TwoTraces, std: Standards, extras: Trace[] = [], names?: CurveNames, markers: Record<string, unknown>[] = [], opt: PlotOptions = {},
 ): Figure {
-  const mag = curves(r, extras, (t) => t.magDb, 1.6, names, opt.colors).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
-  const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt.colors).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
+  const mag = curves(r, extras, (t) => t.magDb, 1.6, names, opt).map((c) => ({ ...c, legendgroup: c.name, yaxis: "y" }));
+  const phase = curves(r, extras, (t) => t.phaseDeg, 1.4, names, opt).map((c) => ({ ...c, legendgroup: c.name, showlegend: false, yaxis: "y2" }));
   return {
     data: [...mag, ...markers.map((m) => ({ ...m, yaxis: "y" })), ...phase],
     layout: {
@@ -222,7 +227,7 @@ export function bodeFigure(
 export function diffFigure(r: Pick<PairResult, "aligned">, std: Standards, opt: PlotOptions = {}): Figure {
   const a = r.aligned;
   return {
-    data: [{ x: a.freq, y: a.yDb.map((v, i) => v - a.xDb[i]), name: "ΔdB = Y − X", mode: "lines", line: { color: "#44515e", width: 1.2 } }],
+    data: [{ x: a.freq, y: a.yDb.map((v, i) => v - a.xDb[i]), name: "ΔdB = Y − X", mode: "lines", line: { color: "#44515e", width: opt.lineWidth ?? 1.2 } }],
     layout: {
       xaxis: xAxisOf(opt),
       yaxis: { title: { text: "ΔdB (lần đo − baseline)" }, zeroline: true, zerolinecolor: "#8b959e", gridcolor: "#e3e7eb" },

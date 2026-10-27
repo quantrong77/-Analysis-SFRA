@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { bodeFigure, curveColor, diffFigure, peakMarkers, type Backdrop, type CurveNames, type PlotOptions, type TraceColors } from "../charts/figures";
 import Plot from "../components/Plot";
-import PlotTools, { type CurveSwatch } from "../components/PlotTools";
-import ZoneInfo from "../components/ZoneInfo";
+import { PlotPanel, useLineWidth, type CurveSwatch } from "../components/PlotTools";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import { bankTraces, compareTraces, phaseGroups, phasePairs, phasePattern, type RefComparison } from "../core/compare";
 import { dayKey, measurementConfig, type TransformerGroup } from "../core/pairing";
@@ -37,10 +36,11 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
   const [hoverF, setHoverF] = useState<number | null>(null);
   const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
+  const [lineWidth, setLineWidth] = useLineWidth();
   const [showPeaks, setShowPeaks] = useState(true);
   const [fit, setFit] = useState(0);
   const figs = useMemo(() => {
-    const opt: PlotOptions = { backdrop, scale, colors };
+    const opt: PlotOptions = { backdrop, scale, colors, lineWidth };
     const pair: [string, string] = [curveColor(c.a, "baseline", colors), curveColor(c.b, "test", colors)];
     const markers = showPeaks ? peakMarkers(c.peaks, names, pair) : [];
     const swatches: CurveSwatch[] = [
@@ -48,7 +48,7 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
       { id: c.b.id, name: names[1], color: pair[1], dashed: true, custom: c.b.id in colors },
     ];
     return { bode: bodeFigure({ baseline: c.a, test: c.b }, std, [], names, markers, opt), diff: diffFigure(c, std, opt), pair, swatches };
-  }, [c, std, names, backdrop, scale, showPeaks, colors]);
+  }, [c, std, names, backdrop, scale, showPeaks, colors, lineWidth]);
   return (
     <section className="panel">
       <div className="row between wrap">
@@ -69,24 +69,29 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
         </div>
         <div>Chế độ căn lưới: {c.aligned.modeLabel}</div>
       </div>
-      <PlotTools
-        std={std}
-        partition={partition}
-        onPartition={setPartition}
-        showPartition={showPartition}
-        onShowPartition={setShowPartition}
-        scale={scale}
-        onScale={setScale}
-        showPeaks={showPeaks}
-        onShowPeaks={setShowPeaks}
-        onFit={() => setFit((n) => n + 1)}
-        curves={figs.swatches}
-        onColor={onColor}
-      />
-      <ZoneInfo std={std} freq={hoverF} />
-      <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} />
-      <h3>Hiệu số ΔdB (đường 2 − đường 1)</h3>
-      <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} onHoverX={setHoverF} />
+      <PlotPanel
+        hoverF={hoverF}
+        tools={{
+          std,
+          partition,
+          onPartition: setPartition,
+          showPartition,
+          onShowPartition: setShowPartition,
+          scale,
+          onScale: setScale,
+          lineWidth,
+          onLineWidth: setLineWidth,
+          showPeaks,
+          onShowPeaks: setShowPeaks,
+          onFit: () => setFit((n) => n + 1),
+          curves: figs.swatches,
+          onColor,
+        }}
+      >
+        <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} />
+        <h3>Hiệu số ΔdB (đường 2 − đường 1)</h3>
+        <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} onHoverX={setHoverF} />
+      </PlotPanel>
       <h3>Rxy và chỉ số TB 812 theo dải DL/T 911 (không phân loại)</h3>
       <Tb812Table ranges={c.bands} std={std} showRxy />
       <h3>Theo vùng IEC 60076-18</h3>

@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { bodeFigure, curveColor, diffFigure, extraName, peakMarkers, type Backdrop, type PlotOptions, type TraceColors } from "../charts/figures";
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
-import PlotTools, { type CurveSwatch } from "../components/PlotTools";
-import ZoneInfo from "../components/ZoneInfo";
+import { PlotPanel, useLineWidth, type CurveSwatch } from "../components/PlotTools";
 import { DateTimeInput } from "../components/DateTime";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
@@ -55,6 +54,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
   const [hoverF, setHoverF] = useState<number | null>(null);
   const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
+  const [lineWidth, setLineWidth] = useLineWidth();
   // remounting the plot is the reset to the full frequency range
   const [fit, setFit] = useState(0);
   const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
@@ -75,7 +75,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       const lv = bandLevel(b.band, b.rxy, std);
       bandLabels[b.band] = { text: `<b>${b.band}</b><br>R${b.band} ${fmtNum(b.rxy, std, 2)}`, color: levelColor(lv?.id ?? "insufficient") };
     }
-    const opt: PlotOptions = { backdrop, scale, bandLabels, colors };
+    const opt: PlotOptions = { backdrop, scale, bandLabels, colors, lineWidth };
     const pair: [string, string] = [curveColor(r.baseline, "baseline", colors), curveColor(r.test, "test", colors)];
     const swatches: CurveSwatch[] = [
       { id: r.baseline.id, name: "Baseline", color: pair[0], custom: r.baseline.id in colors },
@@ -87,7 +87,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       diff: diffFigure(r, std, opt),
       swatches,
     };
-  }, [r, extra, traces, std, showPeaks, backdrop, scale, colors]);
+  }, [r, extra, traces, std, showPeaks, backdrop, scale, colors, lineWidth]);
 
   if (!r || !plots) return <div className="view"><p>Chưa chọn phép đo.</p></div>;
 
@@ -155,25 +155,30 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       <section className="tab-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "compare" && (
           <>
-            <PlotTools
-              std={std}
-              partition={partition}
-              onPartition={setPartition}
-              showPartition={showPartition}
-              onShowPartition={setShowPartition}
-              scale={scale}
-              onScale={setScale}
-              showPeaks={showPeaks}
-              onShowPeaks={setShowPeaks}
-              onFit={() => setFit((n) => n + 1)}
-              partitionNote={backdrop === "dlt911" ? "Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1." : undefined}
-              curves={plots.swatches}
-              onColor={onColor}
-            />
-            <ZoneInfo std={std} freq={hoverF} />
-            <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} />
-            <h3>Hiệu số biên độ ΔdB</h3>
-            <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} onHoverX={setHoverF} />
+            <PlotPanel
+              hoverF={hoverF}
+              tools={{
+                std,
+                partition,
+                onPartition: setPartition,
+                showPartition,
+                onShowPartition: setShowPartition,
+                scale,
+                onScale: setScale,
+                lineWidth,
+                onLineWidth: setLineWidth,
+                showPeaks,
+                onShowPeaks: setShowPeaks,
+                onFit: () => setFit((n) => n + 1),
+                partitionNote: backdrop === "dlt911" ? "Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1." : undefined,
+                curves: plots.swatches,
+                onColor,
+              }}
+            >
+              <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} />
+              <h3>Hiệu số biên độ ΔdB</h3>
+              <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} onHoverX={setHoverF} />
+            </PlotPanel>
             {others.length > 0 && (
               <details>
                 <summary>Thêm đường của kỳ khác hoặc pha khác lên đồ thị ({extra.length} đã chọn)</summary>

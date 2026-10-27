@@ -1072,16 +1072,6 @@ textarea.yaml-edit {
 }
 
 /* chart toolbar: backdrop, axis, markers, reset */
-.plot-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 18px;
-  padding: 8px 10px;
-  background: var(--plate);
-  border-radius: var(--radius);
-  margin-bottom: 6px;
-}
 .partition-pick {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1119,25 +1109,161 @@ textarea.yaml-edit {
   color: #fff;
   position: relative;
 }
-.plot-tools > button {
-  margin-left: auto;
-}
 
-/* influence of the zone under the mouse; the height is reserved so the plot below never moves while hovering */
+/* ---------- analysis area: settings and zone notes side by side, plots below, one frame ---------- */
+.analysis-frame {
+  margin-top: 4px;
+  padding: 14px;
+  background: var(--sheet);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+.plot-head {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.plot-settings {
+  padding: 12px 14px;
+  background: var(--plate);
+  border-radius: var(--radius);
+}
+.plot-settings-head,
+.zone-info-title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.plot-settings-head h3,
+.zone-info-title h3 {
+  margin: 0;
+}
+.settings-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+.settings-rows dt {
+  color: var(--ink-2);
+  font-weight: 500;
+  padding-top: 5px;
+}
+.settings-rows dd {
+  margin: 0;
+  min-width: 0;
+}
+.settings-rows dd .muted.small {
+  margin: 2px 0 0;
+}
+.settings-foot {
+  margin: 12px 0 0;
+}
+.width-sample {
+  display: inline-block;
+  width: 16px;
+  border-top: 2px solid currentColor;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+/* the zone notes take the height of the settings column and scroll inside it, so hovering
+   the plot never changes the layout */
+.zone-col {
+  position: relative;
+  min-height: 22em;
+}
 .zone-info {
-  height: 7.6em;
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
-  margin: 6px 0;
-  padding: 8px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
   border-left: 3px solid var(--winding);
+  border-radius: var(--radius);
   background: var(--sheet);
 }
 .zone-info p {
   margin: 0 0 4px;
 }
+/* the card's title stays in view while the list scrolls to the zone under the mouse */
+.zone-info .zone-info-title {
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  margin: -12px -14px 8px;
+  padding: 12px 14px 8px;
+  background: var(--sheet);
+  border-bottom: 1px solid var(--rule);
+}
+.zone-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.zone-list li {
+  padding: 8px 10px;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.zone-list li + li {
+  margin-top: 2px;
+}
+.zone-list li.on {
+  background: var(--winding-tint);
+  border-left-color: var(--winding);
+}
 .zone-info-head strong {
   font-family: var(--font-cond);
   font-size: 15.5px;
+}
+/* the plots: framed in the baseline blue, stronger while the mouse or keyboard is on them */
+.plot-stage {
+  margin-top: 14px;
+}
+.plot-stage .plot {
+  border: 1px solid #b7c9db;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.plot-stage .plot:hover,
+.plot-stage .plot:focus-within {
+  border-color: var(--winding);
+  box-shadow: 0 0 0 3px var(--winding-tint);
+}
+.plot-stage h3 {
+  margin-top: 18px;
+}
+@media (max-width: 1100px) {
+  .plot-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zone-col {
+    min-height: 18em;
+  }
+}
+/* narrow screens: each setting's label above its controls */
+@media (max-width: 560px) {
+  .settings-rows {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .settings-rows dt {
+    padding-top: 8px;
+  }
+  .analysis-frame {
+    padding: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zone-list li,
+  .plot-stage .plot {
+    transition: none;
+  }
 }
 .zone-key {
   display: flex;
@@ -1518,9 +1644,6 @@ td.v-review {
   }
   .main {
     padding: 18px 16px 40px;
-  }
-  .zone-info {
-    height: 11.5em;
   }
   /* all four detail tabs stay visible instead of scrolling out of the narrow screen */
   .tabs {

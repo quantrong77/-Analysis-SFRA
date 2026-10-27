@@ -37,4 +37,13 @@ describe("màu đường đo", () => {
     expect(workspaceFor(ws, ["SN"], new Set(["f1"])).traceColors).toEqual({ "f1#0": "#000000" });
     expect(workspaceWithout(ws, ["SN"], new Set(["f1"])).traceColors).toEqual({ "f2#1": "#ff0000" });
   });
+
+  it("độ dày nét áp cho đường baseline và lần đo, đường thêm mảnh hơn", async () => {
+    const b = trace("f1#0");
+    const t = trace("f2#0");
+    const x = trace("f3#0");
+    const fig = bodeFigure({ baseline: b, test: t }, await std, [x], undefined, [], { lineWidth: 3.2 });
+    const widths = fig.data.map((d) => Math.round((d.line as { width: number }).width * 10) / 10);
+    expect(widths).toEqual([3.2, 3.2, 2.4, 3.2, 3.2, 2.4]);
+  });
 });
