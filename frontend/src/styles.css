@@ -1245,6 +1245,28 @@ textarea.yaml-edit {
 .settings-foot {
   margin: 12px 0 0;
 }
+.zoom-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zoom-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.zoom-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.zoom-range input {
+  width: 8ch;
+}
+.zoom-controls .muted.small {
+  margin: 0;
+}
 .width-sample {
   display: inline-block;
   width: 16px;
@@ -1308,7 +1330,7 @@ textarea.yaml-edit {
   margin-top: 14px;
 }
 .plot-stage .plot {
-  border: 1.5px solid #b7c9db;
+  border: 4.5px solid #b7c9db;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .plot-stage .plot:hover,

@@ -55,6 +55,8 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
   const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
   const [lineWidth, setLineWidth] = useLineWidth();
+  // frequency range shown by both plots; null = whole range
+  const [xRange, setXRange] = useState<[number, number] | null>(null);
   // remounting the plot is the reset to the full frequency range
   const [fit, setFit] = useState(0);
   const byId = useMemo(() => new Map(traces.map((t) => [t.id, t])), [traces]);
@@ -75,7 +77,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       const lv = bandLevel(b.band, b.rxy, std);
       bandLabels[b.band] = { text: `<b>${b.band}</b><br>R${b.band} ${fmtNum(b.rxy, std, 2)}`, color: levelColor(lv?.id ?? "insufficient") };
     }
-    const opt: PlotOptions = { backdrop, scale, bandLabels, colors, lineWidth };
+    const opt: PlotOptions = { backdrop, scale, bandLabels, colors, lineWidth, xRange: xRange ?? undefined };
     const pair: [string, string] = [curveColor(r.baseline, "baseline", colors), curveColor(r.test, "test", colors)];
     const swatches: CurveSwatch[] = [
       { id: r.baseline.id, name: "Baseline", color: pair[0], custom: r.baseline.id in colors },
@@ -87,7 +89,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
       diff: diffFigure(r, std, opt),
       swatches,
     };
-  }, [r, extra, traces, std, showPeaks, backdrop, scale, colors, lineWidth]);
+  }, [r, extra, traces, std, showPeaks, backdrop, scale, colors, lineWidth, xRange]);
 
   if (!r || !plots) return <div className="view"><p>Chưa chọn phép đo.</p></div>;
 
@@ -169,15 +171,21 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
                 onLineWidth: setLineWidth,
                 showPeaks,
                 onShowPeaks: setShowPeaks,
-                onFit: () => setFit((n) => n + 1),
+                onFit: () => {
+                  setXRange(null);
+                  setFit((n) => n + 1);
+                },
+                xRange: xRange ?? undefined,
+                onXRange: setXRange,
+                span: [Math.min(r.baseline.freq[0], r.test.freq[0]), Math.max(r.baseline.freq[r.baseline.freq.length - 1], r.test.freq[r.test.freq.length - 1])],
                 partitionNote: backdrop === "dlt911" ? "Mỗi dải ghi Rxy, tô màu theo mức Bảng A.1." : undefined,
                 curves: plots.swatches,
                 onColor,
               }}
             >
-              <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} />
+              <Plot key={`bode${fit}`} data={plots.bode.data} layout={plots.bode.layout} height={640} onHoverX={setHoverF} onXRange={setXRange} />
               <h3>Hiệu số biên độ ΔdB</h3>
-              <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} onHoverX={setHoverF} />
+              <Plot key={`diff${fit}`} data={plots.diff.data} layout={plots.diff.layout} height={260} onHoverX={setHoverF} onXRange={setXRange} />
             </PlotPanel>
             {others.length > 0 && (
               <details>

@@ -72,6 +72,8 @@ export interface PlotOptions {
   colors?: TraceColors;
   /** Width of the measured curves in px (extra curves are drawn a little thinner) */
   lineWidth?: number;
+  /** Frequency range shown, in Hz (zoom); undefined shows the whole range */
+  xRange?: [number, number];
 }
 
 interface Region {
@@ -159,7 +161,13 @@ const AXIS = {
   title: { text: "Tần số (Hz)" }, exponentformat: "SI", gridcolor: "#e3e7eb",
   linecolor: "#b9c1c9", minor: { showgrid: true, gridcolor: "#f1f3f5" },
 };
-const xAxisOf = (opt: PlotOptions) => ({ ...AXIS, type: opt.scale ?? "log" });
+function xAxisOf(opt: PlotOptions) {
+  const log = (opt.scale ?? "log") === "log";
+  const zoom = opt.xRange
+    ? { range: log ? opt.xRange.map((f) => Math.log10(f)) : [...opt.xRange], autorange: false }
+    : {};
+  return { ...AXIS, type: log ? "log" : "linear", ...zoom };
+}
 
 type TwoTraces = Pick<PairResult, "baseline" | "test">;
 /** Curve names: baseline/test by default, or e.g. ["Pha A", "Pha B"] for a reference comparison */

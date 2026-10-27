@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { fmtHz } from "../core/quality";
 import { partitionFills } from "../charts/figures";
 import { fmtHzShort } from "../core/quality";
 import { frequencyPartitions, type Standards } from "../core/standards";
@@ -18,7 +19,13 @@ interface Props {
   onLineWidth: (w: number) => void;
   showPeaks: boolean;
   onShowPeaks: (v: boolean) => void;
+  /** Back to the whole frequency range and the default zoom of every axis */
   onFit: () => void;
+  /** Frequency range shown (Hz), undefined = whole range */
+  xRange?: [number, number];
+  onXRange: (r: [number, number] | null) => void;
+  /** Frequency span of the measured data (Hz): zones are clipped to it when zoomed to */
+  span: [number, number];
   /** Extra line under the key, e.g. what the DL/T 911 band labels mean */
   partitionNote?: string;
   /** Curves on the plot, each with its colour, so the user can pick another one */
@@ -153,6 +160,11 @@ export default function PlotTools(p: Props) {
           </div>
         </dd>
 
+        <dt>Zoom vùng</dt>
+        <dd>
+          <ZoomControls p={p} zones={current?.zones ?? []} />
+        </dd>
+
         <dt>Đỉnh/hố</dt>
         <dd>
           <label className="check">
@@ -192,6 +204,64 @@ export default function PlotTools(p: Props) {
       <p className="muted small settings-foot">
         Biên độ (trên) và góc pha (dưới) chung trục tần số: kéo chọn một vùng để phóng to cả hai.
         {p.showPeaks && <> Đỉnh/hố: ▲ đỉnh, ▼ hố; ký hiệu lớn là dịch ≥ ngưỡng, mất hoặc mới.</>}
+      </p>
+    </div>
+  );
+}
+
+/** Zoom to a region of the current partition, to a typed range, or back to the whole range. */
+function ZoomControls({ p, zones }: { p: Props; zones: { key: string; label: string; f_min: number; f_max: number }[] }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [lo, hi] = p.span;
+  const clip = (z: { f_min: number; f_max: number }): [number, number] | null => {
+    const a = Math.max(z.f_min, lo);
+    const b = Math.min(z.f_max, hi);
+    return b > a ? [a, b] : null;
+  };
+  const kHz = (s: string) => Number(s.trim().replace(",", ".")) * 1e3;
+  const typed: [number, number] | null = (() => {
+    const a = kHz(from);
+    const b = kHz(to);
+    return from && to && Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > a ? [a, b] : null;
+  })();
+  return (
+    <div className="zoom-controls">
+      <div className="zoom-zones">
+        {zones.map((z) => {
+          const r = clip(z);
+          const on = Boolean(r && p.xRange && Math.abs(p.xRange[0] - r[0]) < 1e-6 * r[0] && Math.abs(p.xRange[1] - r[1]) < 1e-6 * r[1]);
+          return (
+            <button key={z.key} type="button" className={on ? "chip on" : "chip"} disabled={!r} title={z.label} onClick={() => r && p.onXRange(r)}>
+              {z.key.length <= 3 ? z.key : z.label}
+            </button>
+          );
+        })}
+        <button type="button" className={p.xRange ? "chip" : "chip on"} onClick={() => p.onXRange(null)}>
+          Toàn dải
+        </button>
+      </div>
+      <form
+        className="zoom-range"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (typed) p.onXRange(typed);
+        }}
+      >
+        <label>
+          Từ <input inputMode="decimal" aria-label="Tần số đầu (kHz)" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="1" />
+        </label>
+        <label>
+          đến <input inputMode="decimal" aria-label="Tần số cuối (kHz)" value={to} onChange={(e) => setTo(e.target.value)} placeholder="100" />
+        </label>
+        <span>kHz</span>
+        <button type="submit" disabled={!typed}>
+          Zoom
+        </button>
+      </form>
+      <p className="muted small">
+        {p.xRange ? `Đang xem ${fmtHz(p.xRange[0])} – ${fmtHz(p.xRange[1])}.` : "Đang xem toàn dải."} Có thể kéo chọn một vùng trên giản đồ để
+        zoom; nháy đúp để về toàn dải.
       </p>
     </div>
   );

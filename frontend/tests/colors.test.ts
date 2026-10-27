@@ -46,4 +46,14 @@ describe("màu đường đo", () => {
     const widths = fig.data.map((d) => Math.round((d.line as { width: number }).width * 10) / 10);
     expect(widths).toEqual([3.2, 3.2, 2.4, 3.2, 3.2, 2.4]);
   });
+
+  it("zoom vùng: trục tần số log nhận dải theo log10, tuyến tính nhận Hz; không zoom thì tự co giãn", async () => {
+    const b = trace("f1#0");
+    const t = trace("f2#0");
+    const std0 = await std;
+    const ax = (o: object) => (bodeFigure({ baseline: b, test: t }, std0, [], undefined, [], o).layout.xaxis as Record<string, unknown>);
+    expect(ax({ xRange: [1e3, 1e5] }).range).toEqual([3, 5]);
+    expect(ax({ xRange: [1e3, 1e5], scale: "linear" }).range).toEqual([1e3, 1e5]);
+    expect(ax({}).range).toBeUndefined();
+  });
 });

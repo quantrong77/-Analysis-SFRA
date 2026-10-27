@@ -37,10 +37,12 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
   const backdrop: Backdrop = showPartition ? partition : "none";
   const [scale, setScale] = useState<"log" | "linear">("log");
   const [lineWidth, setLineWidth] = useLineWidth();
+  // frequency range shown by both plots; null = whole range
+  const [xRange, setXRange] = useState<[number, number] | null>(null);
   const [showPeaks, setShowPeaks] = useState(true);
   const [fit, setFit] = useState(0);
   const figs = useMemo(() => {
-    const opt: PlotOptions = { backdrop, scale, colors, lineWidth };
+    const opt: PlotOptions = { backdrop, scale, colors, lineWidth, xRange: xRange ?? undefined };
     const pair: [string, string] = [curveColor(c.a, "baseline", colors), curveColor(c.b, "test", colors)];
     const markers = showPeaks ? peakMarkers(c.peaks, names, pair) : [];
     const swatches: CurveSwatch[] = [
@@ -48,7 +50,7 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
       { id: c.b.id, name: names[1], color: pair[1], dashed: true, custom: c.b.id in colors },
     ];
     return { bode: bodeFigure({ baseline: c.a, test: c.b }, std, [], names, markers, opt), diff: diffFigure(c, std, opt), pair, swatches };
-  }, [c, std, names, backdrop, scale, showPeaks, colors, lineWidth]);
+  }, [c, std, names, backdrop, scale, showPeaks, colors, lineWidth, xRange]);
   return (
     <section className="panel">
       <div className="row between wrap">
@@ -83,14 +85,20 @@ function ComparisonDetail({ c, std, names, colors, onColor }: {
           onLineWidth: setLineWidth,
           showPeaks,
           onShowPeaks: setShowPeaks,
-          onFit: () => setFit((n) => n + 1),
+          onFit: () => {
+                  setXRange(null);
+                  setFit((n) => n + 1);
+                },
+                xRange: xRange ?? undefined,
+                onXRange: setXRange,
+                span: [Math.min(c.a.freq[0], c.b.freq[0]), Math.max(c.a.freq[c.a.freq.length - 1], c.b.freq[c.b.freq.length - 1])],
           curves: figs.swatches,
           onColor,
         }}
       >
-        <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} />
+        <Plot key={`bode${fit}`} data={figs.bode.data} layout={figs.bode.layout} height={620} onHoverX={setHoverF} onXRange={setXRange} />
         <h3>Hiệu số ΔdB (đường 2 − đường 1)</h3>
-        <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} onHoverX={setHoverF} />
+        <Plot key={`diff${fit}`} data={figs.diff.data} layout={figs.diff.layout} height={240} onHoverX={setHoverF} onXRange={setXRange} />
       </PlotPanel>
       <h3>Rxy và chỉ số TB 812 theo dải DL/T 911 (không phân loại)</h3>
       <Tb812Table ranges={c.bands} std={std} showRxy />
