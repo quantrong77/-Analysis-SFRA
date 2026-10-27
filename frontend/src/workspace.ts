@@ -57,6 +57,42 @@ export function regroup(traces: Trace[], previous: TransformerGroup[]): Transfor
   });
 }
 
+/** Which frame of the import screen a file was loaded in: baseline files or files of the test being evaluated. */
+export type FileRole = "baseline" | "test";
+
+const majorityDay = (list: Trace[]): string | null => {
+  const counts = new Map<string, number>();
+  for (const t of list) if (t.testDate) counts.set(dayKey(t.testDate), (counts.get(dayKey(t.testDate)) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+};
+
+/**
+ * Sessions follow the frame files were loaded in: files just loaded as baseline make their day the
+ * baseline session, files just loaded as test make theirs the test session. When that leaves both on
+ * the same day, the other side is taken from the earlier loaded files of the other role, if any.
+ * `fresh` holds the files just loaded (sha256 -> role); `roles` every file loaded through a frame.
+ */
+export function applyRoles(
+  g: TransformerGroup, traces: Trace[], roles: Record<string, FileRole>, fresh: Map<string, FileRole>,
+): TransformerGroup {
+  const list = traces.filter((t) => t.transformerKey === g.key);
+  const of = (role: FileRole, onlyFresh: boolean) =>
+    majorityDay(list.filter((t) => (onlyFresh ? fresh.get(t.sha256) : roles[t.sha256]) === role));
+  const fb = of("baseline", true);
+  const ft = of("test", true);
+  if (!fb && !ft) return g;
+  let b = fb ?? g.baselineSession;
+  let t = ft ?? g.testSession;
+  if (b === t) {
+    const ab = of("baseline", false);
+    const at = of("test", false);
+    if (fb && at && at !== b) t = at;
+    else if (ft && ab && ab !== t) b = ab;
+  }
+  if (!g.sessions.includes(b) || !g.sessions.includes(t)) return g;
+  return b === g.baselineSession && t === g.testSession ? g : setSessions(g, traces, b, t);
+}
+
 export function setSessions(g: TransformerGroup, traces: Trace[], baselineSession: string, testSession: string): TransformerGroup {
   const list = traces.filter((t) => t.transformerKey === g.key);
   return { ...g, baselineSession, testSession, rows: buildRows(list, baselineSession, testSession) };

@@ -32,6 +32,8 @@ export interface WorkspaceState {
   txEdits: Record<string, string>;
   /** trace id -> STT, label and shorted terminals entered by the user so the trace pairs correctly */
   measurementEdits: Record<string, MeasurementId>;
+  /** file sha256 -> frame the file was loaded in (baseline or test) */
+  fileRoles: Record<string, "baseline" | "test">;
   /** trace id -> curve colour (#rrggbb) chosen by the user */
   traceColors: Record<string, string>;
   /** user-edited standards.yaml text; null = built-in ruleset */
@@ -39,7 +41,7 @@ export interface WorkspaceState {
 }
 
 export const emptyWorkspace = (): WorkspaceState => ({
-  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, measurementEdits: {}, traceColors: {}, customRules: null,
+  dateEdits: {}, hidden: [], infoEdits: {}, sessions: {}, mode: "auto", profiles: [], txEdits: {}, measurementEdits: {}, fileRoles: {}, traceColors: {}, customRules: null,
 });
 
 const DB_NAME = "sfra-analyzer";

@@ -22,7 +22,7 @@ import { defaultInfo, type ReportInfo } from "./report/info";
 import { makeBackup, mergeWorkspace, readBackup, workspaceFor, workspaceWithout } from "./storage/backup";
 import { canPickFolder, fileSafe, saveBlob, saveToFolder } from "./storage/saveFile";
 import { emptyWorkspace, requestPersistence, SfraStore, type StoredFile, type WorkspaceState } from "./storage/db";
-import { computeResults, regroup, setSessions, type LoadError } from "./workspace";
+import { applyRoles, computeResults, regroup, setSessions, type FileRole, type LoadError } from "./workspace";
 import Nameplate from "./components/Nameplate";
 import { BrandMark, ICONS } from "./components/Icons";
 
@@ -159,17 +159,29 @@ export default function App() {
       });
   }, [parsed, ws.hidden, ws.dateEdits, ws.txEdits, ws.measurementEdits]);
 
+  // files just loaded through the baseline or test frame: their day becomes that session (applyRoles);
+  // files still without a date wait here until one is entered
+  const freshRoles = useRef(new Map<string, FileRole>());
+  const [roleTick, setRoleTick] = useState(0);
+
   // regroup when traces change; first time, seed with the stored session choices
   useEffect(() => {
+    const fresh = new Map(freshRoles.current);
+    const roles = ws.fileRoles;
     setGroups((prev) => {
       const seed: TransformerGroup[] = prev.length
         ? prev
         : Object.entries(ws.sessions).map(([key, s]) => ({ key, serialNumber: "", locations: [], sessions: [], rows: [], ...s }));
-      return regroup(traces, seed);
+      const groups = regroup(traces, seed);
+      return fresh.size ? groups.map((g) => applyRoles(g, traces, roles, fresh)) : groups;
     });
+    for (const sha of fresh.keys()) {
+      const of = traces.filter((t) => t.sha256 === sha);
+      if (of.length && of.every((t) => t.testDate)) freshRoles.current.delete(sha);
+    }
     // ws.sessions is only a seed; later choices flow from groups into ws below
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [traces]);
+  }, [traces, roleTick]);
 
   // keep the stored session choices in sync with the groups
   useEffect(() => {
@@ -231,12 +243,18 @@ export default function App() {
 
   /** Read files; with `groupKey` they all go to that transformer group (a new one or an existing one). */
   const onFiles = useCallback(
-    async (files: File[], groupKey?: string) => {
+    async (files: File[], groupKey?: string, role?: FileRole) => {
       setBusy(true);
       const stored: StoredFile[] = [];
       for (const f of files) {
         const bytes = new Uint8Array(await f.arrayBuffer());
         stored.push({ sha256: await sha256Hex(bytes), name: f.name, bytes, size: bytes.length, addedAt: new Date().toISOString() });
+      }
+      if (role) {
+        // remembered per file (shown in its frame after a reload) and applied to the sessions once parsed
+        for (const f of stored) freshRoles.current.set(f.sha256, role);
+        setWs((w) => ({ ...w, fileRoles: { ...w.fileRoles, ...Object.fromEntries(stored.map((f) => [f.sha256, role])) } }));
+        setRoleTick((n) => n + 1);
       }
       setErrors(await addStoredFiles(stored));
       const key = groupKey?.trim();
@@ -547,6 +565,7 @@ export default function App() {
             std={std}
             traces={traces}
             groups={live}
+            roles={ws.fileRoles}
             errors={errors}
             busy={busy}
             onFiles={onFiles}

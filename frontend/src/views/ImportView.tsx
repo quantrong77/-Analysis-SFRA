@@ -9,7 +9,7 @@ import { Warnings } from "../components/common";
 import type { CsvProfile } from "../core/parsers";
 import { signatureOf } from "../core/parsers/genericCsv";
 import { canPickFolder } from "../storage/saveFile";
-import { dayKey, sessionLabel, setSessions, type LoadError } from "../workspace";
+import { dayKey, sessionLabel, setSessions, type FileRole, type LoadError } from "../workspace";
 
 interface Props {
   std: Standards;
@@ -17,7 +17,10 @@ interface Props {
   groups: TransformerGroup[];
   errors: LoadError[];
   busy: boolean;
-  onFiles: (files: File[], groupKey?: string) => void;
+  /** Frame each file was loaded in (sha256 -> baseline / test) */
+  roles: Record<string, FileRole>;
+  /** Load files; `role` when they were dropped in the baseline or the test frame */
+  onFiles: (files: File[], groupKey?: string, role?: FileRole) => void;
   onSaveGroup: (groupKey: string) => void;
   onSaveAll: () => void;
   onDeleteGroup: (groupKey: string) => void;
@@ -321,34 +324,98 @@ function GroupBar(p: {
   );
 }
 
+const FRAME_TEXT: Record<FileRole, { step: string; title: string; hint: string; empty: string }> = {
+  baseline: {
+    step: "1",
+    title: "File baseline (kỳ cơ sở)",
+    hint: "Lần đo trước dùng làm chuẩn so sánh, thường là lần đo khi lắp đặt hoặc khi máy còn tốt.",
+    empty: "Chưa có file baseline.",
+  },
+  test: {
+    step: "2",
+    title: "File lần đo cần đánh giá",
+    hint: "Lần đo mới, được so với baseline theo DL/T 911-2004.",
+    empty: "Chưa có file lần đo.",
+  },
+};
 
-export default function ImportView(p: Props) {
+/** One date and time for files of a frame that carry none, so they join a session. */
+function UndatedForm({ files, onSetDates }: { files: Trace[]; onSetDates: (edits: [string, Date | null][]) => void }) {
+  const [value, setValue] = useState("");
+  const d = fromLocalInput(value);
+  return (
+    <form
+      className="frame-undated"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (d) onSetDates(files.map((t) => [t.id, d]));
+      }}
+    >
+      <span>
+        {files.length} đường đo chưa có ngày đo (không đọc được trong file và tên file). Nhập ngày đo để đưa vào so sánh:
+      </span>
+      <span className="row gap wrap">
+        <input type="datetime-local" aria-label="Ngày đo" value={value} onChange={(e) => setValue(e.target.value)} />
+        <button type="submit" disabled={!d}>
+          Áp dụng
+        </button>
+      </span>
+    </form>
+  );
+}
+
+/**
+ * Loading frame for one side of the comparison: its own drop zone, then what it holds per
+ * transformer (day of the session, number of curves, files), with the session date editable.
+ */
+function LoadFrame(p: {
+  role: FileRole;
+  busy: boolean;
+  groups: TransformerGroup[];
+  traces: Trace[];
+  roles: Record<string, FileRole>;
+  onFiles: (files: File[], groupKey?: string, role?: FileRole) => void;
+  onRestore: (packages: File[]) => void;
+  onSetDates: (edits: [string, Date | null][]) => void;
+  onRemove: (traceId: string) => void;
+}) {
   const [drag, setDrag] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const dirInput = useRef<HTMLInputElement>(null);
-  const byId = useMemo(() => new Map(p.traces.map((t) => [t.id, t])), [p.traces]);
-
+  const text = FRAME_TEXT[p.role];
   const take = (list: FileList | null) => {
     if (!list) return;
     const files = Array.from(list).filter((f) => /\.(csv|sfra|frax|xml|txt|dat)$/i.test(f.name));
-    // saved group packages dropped together with measurement files
+    // saved group packages hold both sides: they are opened as they were saved
     const packages = Array.from(list).filter((f) => /\.zip$/i.test(f.name));
-    if (files.length) p.onFiles(files);
+    if (files.length) p.onFiles(files, undefined, p.role);
     if (packages.length) p.onRestore(packages);
   };
-
-  const updateGroup = (g: TransformerGroup) => p.onGroups(p.groups.map((x) => (x.key === g.key ? g : x)));
-
+  const entries = p.groups
+    .map((g) => {
+      const list = p.traces.filter((t) => t.transformerKey === g.key);
+      const session = p.role === "baseline" ? g.baselineSession : g.testSession;
+      // one session only: it belongs to the frame its files were loaded in
+      const single = g.baselineSession === g.testSession;
+      const files =
+        session === UNKNOWN_DAY ? [] : list.filter((t) => dayKey(t.testDate) === session && (!single || p.roles[t.sha256] === p.role));
+      const undated = list.filter((t) => !t.testDate && p.roles[t.sha256] === p.role);
+      return { g, session, files, undated };
+    })
+    .filter((e) => e.files.length || e.undated.length);
   return (
-    <div className="view">
-      <h1>Nhập dữ liệu</h1>
-      <p className="muted">
-        File được đọc và tính toán ngay trong trình duyệt, không tải lên máy chủ. Hỗ trợ: FRA Data v2.0 (.csv), Doble
-        SFRA (.sfra), Megger FRAX (.frax và .csv, nhiều phép đo trong một file).
-      </p>
-
+    <section className={`load-frame ${p.role}`} aria-labelledby={`frame-${p.role}`}>
+      <div className="frame-head">
+        <span className="step" aria-hidden="true">
+          {text.step}
+        </span>
+        <div>
+          <h2 id={`frame-${p.role}`}>{text.title}</h2>
+          <p className="muted small">{text.hint}</p>
+        </div>
+      </div>
       <div
-        className={`dropzone${drag ? " drag" : ""}`}
+        className={`dropzone compact${drag ? " drag" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDrag(true);
@@ -361,9 +428,8 @@ export default function ImportView(p: Props) {
         }}
       >
         <div>
-          <strong>Kéo thả file đo hoặc file nhóm đã lưu (.zip) vào đây</strong>
-          <div className="muted">hoặc</div>
-          <div className="row gap">
+          <strong>Kéo thả file vào đây</strong>
+          <div className="row gap wrap">
             <button className="primary" onClick={() => fileInput.current?.click()} disabled={p.busy}>
               Chọn file…
             </button>
@@ -382,9 +448,78 @@ export default function ImportView(p: Props) {
           onChange={(e) => take(e.target.files)}
         />
       </div>
-      {p.busy && <p className="muted">Đang xử lý…</p>}
+      {entries.length === 0 ? (
+        <p className="muted small frame-empty">{text.empty}</p>
+      ) : (
+        entries.map((e) => (
+          <div key={e.g.key} className="frame-group">
+            <div className="frame-group-head">
+              <strong>Máy {e.g.key}</strong>
+              {e.files.length > 0 && (
+                <span>
+                  Ngày đo {sessionLabel(e.session)}, {e.files.length} đường đo
+                </span>
+              )}
+              {e.files.length > 0 && <SessionDateEdit key={e.session} session={e.session} files={e.files} onSetDate={p.onSetDates} />}
+            </div>
+            {e.undated.length > 0 && <UndatedForm files={e.undated} onSetDates={p.onSetDates} />}
+            {e.files.length > 0 && (
+              <details>
+                <summary>Danh sách ({e.files.length})</summary>
+                <ul className="frame-files">
+                  {e.files.map((t) => (
+                    <li key={t.id}>
+                      <span className="frame-file-label">
+                        {t.index !== null ? `${t.index} ` : ""}
+                        {displayLabel(t)}
+                      </span>
+                      <span className="file-name">{t.sourceName}</span>
+                      <button type="button" className="link" onClick={() => p.onRemove(t.id)}>
+                        Bỏ
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
 
-      <GroupBar groups={p.groups} busy={p.busy} notice={p.notice} onFiles={p.onFiles} onSaveAll={p.onSaveAll} onRestore={p.onRestore} />
+export default function ImportView(p: Props) {
+  const byId = useMemo(() => new Map(p.traces.map((t) => [t.id, t])), [p.traces]);
+  const frame = (role: FileRole) => (
+    <LoadFrame
+      role={role}
+      busy={p.busy}
+      groups={p.groups}
+      traces={p.traces}
+      roles={p.roles}
+      onFiles={p.onFiles}
+      onRestore={p.onRestore}
+      onSetDates={p.onSetDates}
+      onRemove={p.onRemove}
+    />
+  );
+
+  const updateGroup = (g: TransformerGroup) => p.onGroups(p.groups.map((x) => (x.key === g.key ? g : x)));
+
+  return (
+    <div className="view">
+      <h1>Nhập dữ liệu</h1>
+      <p className="muted">
+        File được đọc và tính toán ngay trong trình duyệt, không tải lên máy chủ. Hỗ trợ: FRA Data v2.0 (.csv), Doble
+        SFRA (.sfra), Megger FRAX (.frax và .csv, nhiều phép đo trong một file).
+      </p>
+
+      <div className="load-frames">
+        {frame("baseline")}
+        {frame("test")}
+      </div>
+      {p.busy && <p className="muted">Đang xử lý…</p>}
 
       {p.pending.length > 0 && (
         <div className="view">
@@ -416,273 +551,288 @@ export default function ImportView(p: Props) {
         </div>
       )}
 
-      {p.groups.map((g) => {
-        const list = p.traces.filter((t) => t.transformerKey === g.key);
-        const paired = g.rows.filter((r) => r.baselineId && r.testId && r.baselineId !== r.testId).length;
-        const unpaired = g.rows.filter((r) => !(r.baselineId && r.testId));
-        return (
-          <section key={g.key} className="panel">
-            <h2>Máy biến áp {g.key}</h2>
-            <p className="muted">
-              {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
+      <section className="pair-frame" aria-labelledby="frame-pairs">
+        <div className="frame-head">
+          <span className="step" aria-hidden="true">
+            3
+          </span>
+          <div>
+            <h2 id="frame-pairs">Chọn cặp đo để so sánh</h2>
+            <p className="muted small">
+              App ghép cặp file baseline với file lần đo theo STT và ký hiệu phép đo. Kiểm tra từng dòng, chọn lại file nếu cần, rồi
+              bấm Xác nhận và tính.
             </p>
-            {/* identity and the two sessions compared, label above each field; actions on the row below */}
-            <div className="group-fields">
-              <SerialEdit
-                key={g.key}
-                g={g}
-                files={list}
-                others={p.groups.map((x) => x.key).filter((k) => k !== g.key)}
-                onApply={(k) => p.onSetTransformer([...new Set(list.map((t) => t.sha256))], k, g.key)}
-              />
-              <div className="group-field">
-                <label className="field">
-                  <span>Baseline (kỳ cơ sở)</span>
-                  <select
-                    value={g.baselineSession}
-                    onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
-                  >
-                    {g.sessions.map((s) => (
-                      <option key={s} value={s}>
-                        {sessionLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <SessionDateEdit
-                  key={`b${g.baselineSession}`}
-                  session={g.baselineSession}
-                  files={list.filter((t) => dayKey(t.testDate) === g.baselineSession)}
-                  onSetDate={p.onSetDates}
-                />
-              </div>
-              <div className="group-field">
-                <label className="field">
-                  <span>Lần đo cần đánh giá</span>
-                  <select
-                    value={g.testSession}
-                    onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
-                  >
-                    {g.sessions.map((s) => (
-                      <option key={s} value={s}>
-                        {sessionLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {g.testSession !== g.baselineSession && (
-                  <SessionDateEdit
-                    key={`t${g.testSession}`}
-                    session={g.testSession}
-                    files={list.filter((t) => dayKey(t.testDate) === g.testSession)}
-                    onSetDate={p.onSetDates}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="group-actions">
-              <button className="primary" disabled={!paired} onClick={() => p.onAnalyze(g.key)}>
-                Xác nhận và tính ({paired} cặp)
-              </button>
-              <button onClick={() => p.onSaveGroup(g.key)} disabled={p.busy}>
-                Lưu nhóm (.zip)
-              </button>
-              <button className="danger push-end" onClick={() => p.onDeleteGroup(g.key)} disabled={p.busy}>
-                Xóa nhóm
-              </button>
-            </div>
-            {g.sessions.length < 2 && (
-              <div className="note">
-                <p>
-                  Máy này mới có một kỳ đo ({sessionLabel(g.testSession)}), chưa có baseline để đánh giá theo DL/T 911. Baseline là
-                  file của một ngày đo khác, cùng số chế tạo {g.serialNumber || g.key}.
-                </p>
-                <ul>
-                  <li>Nạp thêm file của kỳ trước.</li>
-                  {g.rows.some((r) => r.candidates.length > 1) && (
-                    <li>
-                      Có phép đo gồm nhiều file trong cùng ngày, app chỉ dùng file mới nhất. Nếu một file thuộc kỳ trước, sửa cột Ngày đo của
-                      file đó trong mục Danh sách file đã nạp.
-                    </li>
-                  )}
-                  {p.groups.length > 1 && (
-                    <li>
-                      Nếu file kỳ trước ghi số chế tạo khác, sửa số chế tạo ở trên (cả nhóm) hoặc cột MBA trong mục Danh sách file đã
-                      nạp (từng file).
-                    </li>
-                  )}
-                  <li>
-                    Khi chưa có baseline, có thể{" "}
-                    <button className="link" onClick={() => p.onCompare(g.key)}>
-                      so sánh tham khảo giữa các pha
-                    </button>
-                    .
-                  </li>
-                </ul>
-              </div>
-            )}
+          </div>
+        </div>
+        <GroupBar groups={p.groups} busy={p.busy} notice={p.notice} onFiles={p.onFiles} onSaveAll={p.onSaveAll} onRestore={p.onRestore} />
+        {p.groups.length === 0 && <p className="muted frame-empty">Nạp file ở khung 1 và khung 2, các cặp đo sẽ hiện ở đây.</p>}
 
-            <MeasurementTimes g={g} list={list} onSetDate={p.onSetDate} />
-
-            <div className="table-wrap">
-              <table className="grid fit-selects">
-                <thead>
-                  <tr>
-                    <th>STT</th>
-                    <th>Phép đo</th>
-                    <th>File baseline</th>
-                    <th>File lần đo</th>
-                    <th>Số điểm</th>
-                    <th>Dải tần</th>
-                    <th>Cảnh báo chất lượng</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.rows.map((r) => {
-                    const test = r.testId ? byId.get(r.testId) : undefined;
-                    const base = r.baselineId ? byId.get(r.baselineId) : undefined;
-                    const pick = (field: "baselineId" | "testId", id: string) => {
-                      if (id && !r.candidates.includes(id)) {
-                        // a file of another measurement: give it this row's STT, label and configuration
-                        const ref = r.candidates.map((c) => byId.get(c)).find(Boolean);
-                        if (ref) p.onSetMeasurement(id, measurementIdOf(ref));
-                        return;
-                      }
-                      updateGroup({
-                        ...g,
-                        rows: g.rows.map((x) => (x.key === r.key ? { ...x, [field]: id || null } : x)),
-                      });
-                    };
-                    const sel = (field: "baselineId" | "testId", cur?: Trace) => {
-                      const session = field === "baselineId" ? g.baselineSession : g.testSession;
-                      const others = list.filter((t) => dayKey(t.testDate) === session && !r.candidates.includes(t.id));
-                      return (
-                        <select value={cur?.id ?? ""} title={cur?.sourceName} onChange={(e) => pick(field, e.target.value)}>
-                          <option value="">— không có —</option>
-                          {/* files just removed are skipped until the groups are rebuilt */}
-                          {r.candidates.filter((id) => byId.has(id)).map((id) => {
-                            const t = byId.get(id)!;
-                            return (
-                              <option key={id} value={id}>
-                                {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
-                              </option>
-                            );
-                          })}
-                          {others.length > 0 && (
-                            <optgroup label="Gán file khác của kỳ này vào phép đo này">
-                              {others.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {t.index !== null ? `${t.index} ` : ""}
-                                  {displayLabel(t)}: {t.sourceName}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                      );
-                    };
-                    const edited = r.candidates.some((id) => byId.get(id)?.measurementOriginal);
-                    const q = [
-                      ...(base ? checkTrace(base, p.std).map((w) => ({ ...w, message: `Baseline: ${w.message}` })) : []),
-                      ...(test ? checkTrace(test, p.std).map((w) => ({ ...w, message: `Lần đo: ${w.message}` })) : []),
-                    ].filter((w) => w.severity === "warning");
-                    return (
-                      <tr key={r.key} className={base && test ? "" : "dim"}>
-                        <td className="num">{r.index ?? "–"}</td>
-                        <td>
-                          <strong>{r.label}</strong>
-                          {edited && <div className="muted small">Đã sửa phép đo</div>}
-                        </td>
-                        <td>{sel("baselineId", base)}</td>
-                        <td>{sel("testId", test)}</td>
-                        <td className="num nowrap">
-                          {base?.freq.length ?? "–"} / {test?.freq.length ?? "–"}
-                        </td>
-                        <td className="nowrap">
-                          {test ? `${fmtHz(test.freq[0])} – ${fmtHz(test.freq[test.freq.length - 1])}` : "–"}
-                        </td>
-                        <td>
-                          <Warnings items={q} compact />
-                        </td>
-                        <td>
-                          <button className="nowrap" disabled={!(base && test) || base.id === test.id} onClick={() => p.onPlot(g.key, r.key)}>
-                            Vẽ giản đồ
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {g.sessions.length > 1 && unpaired.length > 0 && (
-              <p className="note">
-                Thiếu cặp (không tính): {unpaired.map((r) => `${r.index ?? ""} ${r.label}`.trim()).join(", ")}
+        {p.groups.map((g) => {
+          const list = p.traces.filter((t) => t.transformerKey === g.key);
+          // both frames used, but their files carry the same day: sessions are told apart by day only
+          const sameDay =
+            g.baselineSession === g.testSession &&
+            list.some((t) => p.roles[t.sha256] === "baseline") &&
+            list.some((t) => p.roles[t.sha256] === "test");
+          const paired = g.rows.filter((r) => r.baselineId && r.testId && r.baselineId !== r.testId).length;
+          const unpaired = g.rows.filter((r) => !(r.baselineId && r.testId));
+          return (
+            <section key={g.key} className="panel">
+              <h2>Máy biến áp {g.key}</h2>
+              <p className="muted">
+                {g.locations.join(", ") || "Chưa ghi vị trí"}. {list.length} đường đo trong {g.sessions.length} kỳ đo.
               </p>
-            )}
+              {/* identity and the two sessions compared, label above each field; actions on the row below */}
+              <div className="group-fields">
+                <SerialEdit
+                  key={g.key}
+                  g={g}
+                  files={list}
+                  others={p.groups.map((x) => x.key).filter((k) => k !== g.key)}
+                  onApply={(k) => p.onSetTransformer([...new Set(list.map((t) => t.sha256))], k, g.key)}
+                />
+                <div className="group-field">
+                  <label className="field">
+                    <span>Baseline (kỳ cơ sở)</span>
+                    <select
+                      value={g.baselineSession}
+                      onChange={(e) => updateGroup(setSessions(g, p.traces, e.target.value, g.testSession))}
+                    >
+                      {g.sessions.map((s) => (
+                        <option key={s} value={s}>
+                          {sessionLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="group-field">
+                  <label className="field">
+                    <span>Lần đo cần đánh giá</span>
+                    <select
+                      value={g.testSession}
+                      onChange={(e) => updateGroup(setSessions(g, p.traces, g.baselineSession, e.target.value))}
+                    >
+                      {g.sessions.map((s) => (
+                        <option key={s} value={s}>
+                          {sessionLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div className="group-actions">
+                <button className="primary" disabled={!paired} onClick={() => p.onAnalyze(g.key)}>
+                  Xác nhận và tính ({paired} cặp)
+                </button>
+                <button onClick={() => p.onSaveGroup(g.key)} disabled={p.busy}>
+                  Lưu nhóm (.zip)
+                </button>
+                <button className="danger push-end" onClick={() => p.onDeleteGroup(g.key)} disabled={p.busy}>
+                  Xóa nhóm
+                </button>
+              </div>
+              {sameDay && (
+                <p className="note">
+                  File ở khung baseline và khung lần đo cùng ngày đo {sessionLabel(g.testSession)}. App phân kỳ đo theo ngày, nên cần
+                  sửa ngày đo của một bên (nút Sửa ngày ở khung 1 hoặc khung 2).
+                </p>
+              )}
+              {!sameDay && g.sessions.length < 2 && (
+                <div className="note">
+                  <p>
+                    Máy này mới có một kỳ đo ({sessionLabel(g.testSession).replace(/^\((.*)\)$/, "$1")}), chưa có baseline để đánh giá theo DL/T 911. Baseline là
+                    file của một ngày đo khác, cùng số chế tạo {g.serialNumber || g.key}.
+                  </p>
+                  <ul>
+                    <li>Nạp file của kỳ trước ở khung 1 (baseline).</li>
+                    {g.rows.some((r) => r.candidates.length > 1) && (
+                      <li>
+                        Có phép đo gồm nhiều file trong cùng ngày, app chỉ dùng file mới nhất. Nếu một file thuộc kỳ trước, sửa cột Ngày đo của
+                        file đó trong mục Danh sách file đã nạp.
+                      </li>
+                    )}
+                    {p.groups.length > 1 && (
+                      <li>
+                        Nếu file kỳ trước ghi số chế tạo khác, sửa số chế tạo ở trên (cả nhóm) hoặc cột MBA trong mục Danh sách file đã
+                        nạp (từng file).
+                      </li>
+                    )}
+                    <li>
+                      Khi chưa có baseline, có thể{" "}
+                      <button className="link" onClick={() => p.onCompare(g.key)}>
+                        so sánh tham khảo giữa các pha
+                      </button>
+                      .
+                    </li>
+                  </ul>
+                </div>
+              )}
 
-            <details>
-              <summary>Danh sách file đã nạp ({list.length})</summary>
+              {/* files without a date that were loaded through a frame are dated there */}
+              <MeasurementTimes g={g} list={list.filter((t) => t.testDate || !p.roles[t.sha256])} onSetDate={p.onSetDate} />
+
               <div className="table-wrap">
-                <table className="grid small">
+                <table className="grid fit-selects">
                   <thead>
                     <tr>
-                      <th>File</th>
-                      <th>Định dạng</th>
-                      <th>Đường đo</th>
-                      <th>Ngày đo</th>
-                      <th>MBA</th>
-                      <th>Phép đo (STT, ký hiệu, cấu hình)</th>
-                      <th>Đầu đo</th>
+                      <th>STT</th>
+                      <th>Phép đo</th>
+                      <th>File baseline</th>
+                      <th>File lần đo</th>
+                      <th>Số điểm</th>
+                      <th>Dải tần</th>
+                      <th>Cảnh báo chất lượng</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {list.map((t) => (
-                      <tr key={t.id}>
-                        <td className="cell-file">
-                          <code>{t.sourceName}</code>
-                          {t.parseNotes.length > 0 && <div className="muted small">{t.parseNotes.join(" ")}</div>}
-                        </td>
-                        <td className="nowrap">{t.formatLabel}</td>
-                        <td>{t.traceName}</td>
-                        <td>
-                          <DateTimeInput t={t} onSet={(d) => p.onSetDate([t.id], d)} />
-                          <div className="muted small">Nguồn: {t.dateSource || "chưa có"}</div>
-                        </td>
-                        <td>
-                          <input
-                            key={t.transformerKey}
-                            className="tx-input"
-                            list="tx-keys"
-                            defaultValue={t.transformerKey}
-                            title="Số chế tạo dùng để nhóm file thành các kỳ đo của một máy. Để trống để khôi phục giá trị trong file."
-                            onBlur={(e) => {
-                              if (e.target.value.trim() !== t.transformerKey) p.onSetTransformer([t.sha256], e.target.value);
-                            }}
-                          />
-                        </td>
-                        <td>
-                          <MeasurementFields t={t} onSet={(m) => p.onSetMeasurement(t.id, m)} />
-                        </td>
-                        <td className="nowrap">
-                          {t.setting.redLead || "–"} → {t.setting.blackLead || "–"}
-                        </td>
-                        <td>
-                          <button className="link" onClick={() => p.onRemove(t.id)}>
-                            Bỏ
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {g.rows.map((r) => {
+                      const test = r.testId ? byId.get(r.testId) : undefined;
+                      const base = r.baselineId ? byId.get(r.baselineId) : undefined;
+                      const pick = (field: "baselineId" | "testId", id: string) => {
+                        if (id && !r.candidates.includes(id)) {
+                          // a file of another measurement: give it this row's STT, label and configuration
+                          const ref = r.candidates.map((c) => byId.get(c)).find(Boolean);
+                          if (ref) p.onSetMeasurement(id, measurementIdOf(ref));
+                          return;
+                        }
+                        updateGroup({
+                          ...g,
+                          rows: g.rows.map((x) => (x.key === r.key ? { ...x, [field]: id || null } : x)),
+                        });
+                      };
+                      const sel = (field: "baselineId" | "testId", cur?: Trace) => {
+                        const session = field === "baselineId" ? g.baselineSession : g.testSession;
+                        const others = list.filter((t) => dayKey(t.testDate) === session && !r.candidates.includes(t.id));
+                        return (
+                          <select value={cur?.id ?? ""} title={cur?.sourceName} onChange={(e) => pick(field, e.target.value)}>
+                            <option value="">— không có —</option>
+                            {/* files just removed are skipped until the groups are rebuilt */}
+                            {r.candidates.filter((id) => byId.has(id)).map((id) => {
+                              const t = byId.get(id)!;
+                              return (
+                                <option key={id} value={id}>
+                                  {sessionLabel(dayKey(t.testDate))}: {t.sourceName}
+                                </option>
+                              );
+                            })}
+                            {others.length > 0 && (
+                              <optgroup label="Gán file khác của kỳ này vào phép đo này">
+                                {others.map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.index !== null ? `${t.index} ` : ""}
+                                    {displayLabel(t)}: {t.sourceName}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
+                        );
+                      };
+                      const edited = r.candidates.some((id) => byId.get(id)?.measurementOriginal);
+                      const q = [
+                        ...(base ? checkTrace(base, p.std).map((w) => ({ ...w, message: `Baseline: ${w.message}` })) : []),
+                        ...(test ? checkTrace(test, p.std).map((w) => ({ ...w, message: `Lần đo: ${w.message}` })) : []),
+                      ].filter((w) => w.severity === "warning");
+                      return (
+                        <tr key={r.key} className={base && test ? "" : "dim"}>
+                          <td className="num">{r.index ?? "–"}</td>
+                          <td>
+                            <strong>{r.label}</strong>
+                            {edited && <div className="muted small">Đã sửa phép đo</div>}
+                          </td>
+                          <td>{sel("baselineId", base)}</td>
+                          <td>{sel("testId", test)}</td>
+                          <td className="num nowrap">
+                            {base?.freq.length ?? "–"} / {test?.freq.length ?? "–"}
+                          </td>
+                          <td className="nowrap">
+                            {test ? `${fmtHz(test.freq[0])} – ${fmtHz(test.freq[test.freq.length - 1])}` : "–"}
+                          </td>
+                          <td>
+                            <Warnings items={q} compact />
+                          </td>
+                          <td>
+                            <button className="nowrap" disabled={!(base && test) || base.id === test.id} onClick={() => p.onPlot(g.key, r.key)}>
+                              Vẽ giản đồ
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </details>
-          </section>
-        );
-      })}
+              {g.sessions.length > 1 && unpaired.length > 0 && (
+                <p className="note">
+                  Thiếu cặp (không tính): {unpaired.map((r) => `${r.index ?? ""} ${r.label}`.trim()).join(", ")}
+                </p>
+              )}
+
+              <details>
+                <summary>Danh sách file đã nạp ({list.length})</summary>
+                <div className="table-wrap">
+                  <table className="grid small">
+                    <thead>
+                      <tr>
+                        <th>File</th>
+                        <th>Định dạng</th>
+                        <th>Đường đo</th>
+                        <th>Ngày đo</th>
+                        <th>MBA</th>
+                        <th>Phép đo (STT, ký hiệu, cấu hình)</th>
+                        <th>Đầu đo</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.map((t) => (
+                        <tr key={t.id}>
+                          <td className="cell-file">
+                            <code>{t.sourceName}</code>
+                            {t.parseNotes.length > 0 && <div className="muted small">{t.parseNotes.join(" ")}</div>}
+                          </td>
+                          <td className="nowrap">{t.formatLabel}</td>
+                          <td>{t.traceName}</td>
+                          <td>
+                            <DateTimeInput t={t} onSet={(d) => p.onSetDate([t.id], d)} />
+                            <div className="muted small">Nguồn: {t.dateSource || "chưa có"}</div>
+                          </td>
+                          <td>
+                            <input
+                              key={t.transformerKey}
+                              className="tx-input"
+                              list="tx-keys"
+                              defaultValue={t.transformerKey}
+                              title="Số chế tạo dùng để nhóm file thành các kỳ đo của một máy. Để trống để khôi phục giá trị trong file."
+                              onBlur={(e) => {
+                                if (e.target.value.trim() !== t.transformerKey) p.onSetTransformer([t.sha256], e.target.value);
+                              }}
+                            />
+                          </td>
+                          <td>
+                            <MeasurementFields t={t} onSet={(m) => p.onSetMeasurement(t.id, m)} />
+                          </td>
+                          <td className="nowrap">
+                            {t.setting.redLead || "–"} → {t.setting.blackLead || "–"}
+                          </td>
+                          <td>
+                            <button className="link" onClick={() => p.onRemove(t.id)}>
+                              Bỏ
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </section>
+          );
+        })}
+      </section>
 
       <datalist id="tx-keys">
         {p.groups.map((g) => (

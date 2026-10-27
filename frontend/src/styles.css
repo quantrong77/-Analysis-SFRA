@@ -536,6 +536,123 @@ input[type="checkbox"] {
 .dropzone .row {
   justify-content: center;
 }
+/* import: one frame per side of the comparison, side by side, then the pairing frame */
+.load-frames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+.load-frame,
+.pair-frame {
+  padding: 16px 18px 18px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--ink-2);
+  border-radius: var(--radius);
+}
+/* the frame's top edge carries the colour of its curve on the plots */
+.load-frame.baseline {
+  border-top-color: var(--winding);
+}
+.load-frame.test {
+  border-top-color: var(--test);
+}
+.pair-frame {
+  margin-top: 18px;
+}
+.frame-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.frame-head h2 {
+  margin: 0;
+}
+.frame-head p {
+  margin: 2px 0 0;
+}
+.step {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-cond);
+  font-weight: 700;
+  font-size: 15px;
+}
+.load-frame.baseline .step {
+  background: var(--winding);
+}
+.load-frame.test .step {
+  background: var(--test);
+}
+.dropzone.compact {
+  padding: 18px 16px;
+}
+.dropzone.compact strong {
+  font-size: 16.5px;
+}
+.frame-empty {
+  margin: 12px 0 0;
+}
+.frame-group {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.frame-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+.frame-group details {
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+.frame-files {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.frame-files li {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.frame-file-label {
+  font-weight: 600;
+}
+.frame-undated {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--amber-tint);
+  border-left: 3px solid var(--amber);
+  font-size: 13.5px;
+}
+.pair-frame > .panel {
+  margin-top: 16px;
+}
+@media (max-width: 860px) {
+  .load-frames {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .dropzone.drag {
   border-color: var(--winding);
   background: var(--winding-tint);
