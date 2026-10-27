@@ -58,6 +58,17 @@ export const ICONS: Record<string, JSX.Element> = {
   ),
 };
 
+/** Menu toggle: a panel with its left column, open or folded away. */
+export function RailIcon({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...P}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M9 4.5v15" />
+      {open ? <path d="M15.5 9.5 13 12l2.5 2.5" /> : <path d="M13 9.5l2.5 2.5-2.5 2.5" />}
+    </svg>
+  );
+}
+
 /** Brand mark: a winding coil whose last turn becomes a frequency response. */
 export function BrandMark() {
   return (

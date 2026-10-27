@@ -22,11 +22,14 @@ import { defaultInfo, type ReportInfo } from "./report/info";
 import { makeBackup, mergeWorkspace, readBackup, workspaceFor, workspaceWithout } from "./storage/backup";
 import { canPickFolder, fileSafe, saveBlob, saveToFolder } from "./storage/saveFile";
 import { emptyWorkspace, requestPersistence, SfraStore, type StoredFile, type WorkspaceState } from "./storage/db";
-import { applyRoles, computeResults, regroup, setSessions, type FileRole, type LoadError } from "./workspace";
+import { applyRoles, computeResults, regroup, sessionLabel, setSessions, type FileRole, type LoadError } from "./workspace";
 import Nameplate from "./components/Nameplate";
-import { BrandMark, ICONS } from "./components/Icons";
+import { BrandMark, ICONS, RailIcon } from "./components/Icons";
+import { LevelBadge } from "./components/common";
 
 type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "standards";
+
+const RAIL_KEY = "sfra.rail";
 
 const NAV: { id: View; label: string }[] = [
   { id: "overview", label: "Tổng quan" },
@@ -75,6 +78,23 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>("overview");
+  // navigation rail shown or folded away; remembered in this browser
+  const [railOpen, setRailOpen] = useState(() => {
+    try {
+      return localStorage.getItem(RAIL_KEY) !== "closed";
+    } catch {
+      return true;
+    }
+  });
+  const toggleRail = () =>
+    setRailOpen((open) => {
+      try {
+        localStorage.setItem(RAIL_KEY, open ? "closed" : "open");
+      } catch {
+        /* private window: the choice lasts for this page only */
+      }
+      return !open;
+    });
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [rowKey, setRowKey] = useState<string | null>(null);
   const [storage, setStorage] = useState<StorageStatus>({ ok: false, message: "Đang mở bộ nhớ trình duyệt…", fileCount: 0 });
@@ -478,9 +498,10 @@ export default function App() {
   const plateViews: View[] = ["results", "detail", "trend", "compare", "report"];
   const showPlate = Boolean(group && info && plateViews.includes(view));
 
+  const viewLabel = NAV.find((n) => n.id === view)?.label ?? "";
   return (
-    <div className="shell">
-      <aside className="rail">
+    <div className={railOpen ? "shell" : "shell rail-hidden"}>
+      <aside className="rail" id="rail" hidden={!railOpen}>
         <div className="brand">
           <BrandMark />
           <div>
@@ -521,175 +542,213 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="main">
-        {/* a new screen starts without the error of the previous one */}
-        <ErrorBoundary key={view} onHome={() => setView("overview")}>
-        {showPlate && group && info && (
-          <Nameplate
-            group={group}
-            name={info.name}
-            manufacturer={info.manufacturer}
-            year={info.year}
-            worst={worst[group.key] ?? null}
-            mode={mode}
-            onMode={setMode}
-            onSessions={(b, t) => setGroups((gs) => gs.map((g) => (g.key === group.key ? setSessions(g, traces, b, t) : g)))}
-          />
-        )}
-        {view === "overview" && (
-          <OverviewView
-            std={std}
-            groups={live}
-            traces={traces}
-            worst={worst}
-            traceCount={traceCount}
-            mode={mode}
-            storage={storage}
-            busy={busy}
-            errors={errors}
-            onImport={() => setView("import")}
-            onOpen={(k) => {
-              setActiveGroup(k);
-              setView("results");
-            }}
-            onTrend={(k) => {
-              setActiveGroup(k);
-              setView("trend");
-            }}
-            onBackup={onBackup}
-            onRestore={onRestore}
-          />
-        )}
-        {view === "import" && (
-          <ImportView
-            std={std}
-            traces={traces}
-            groups={live}
-            roles={ws.fileRoles}
-            errors={errors}
-            busy={busy}
-            onFiles={onFiles}
-            onGroups={setGroups}
-            onSetDate={(ids, d) => setDates(ids.map((id) => [id, d]))}
-            onSetDates={setDates}
-            onRemove={onRemove}
-            onClear={onClear}
-            pending={pending}
-            onMap={onMap}
-            onSkipPending={(item) => setPending((prev) => prev.filter((x) => x !== item))}
-            onSetMeasurement={(id, m) => {
-              const original = parsed.find((t) => t.id === id);
-              setWs((w) => {
-                const edits = { ...w.measurementEdits };
-                // null, or back to what the file says: drop the edit
-                if (m && original && !sameMeasurementId(m, measurementIdOf(original))) edits[id] = m;
-                else delete edits[id];
-                return { ...w, measurementEdits: edits };
-              });
-            }}
-            onSetTransformer={(shas, key, from) => {
-              const original = new Map(parsed.map((t) => [t.sha256, t.transformerKey]));
-              setWs((w) => {
-                const tx = { ...w.txEdits };
-                for (const sha of shas) {
-                  // empty, or back to the value in the file: drop the edit
-                  if (key.trim() && key.trim() !== original.get(sha)) tx[sha] = key.trim();
-                  else delete tx[sha];
-                }
-                return { ...w, txEdits: tx };
-              });
-              if (from && activeGroup === from) setActiveGroup(key.trim() || null);
-            }}
-            onAnalyze={(k) => {
-              setActiveGroup(k);
-              setView("results");
-            }}
-            onCompare={(k) => {
-              setActiveGroup(k);
-              setView("compare");
-            }}
-            onSaveGroup={onSaveGroup}
-            onSaveAll={onSaveAll}
-            onDeleteGroup={onDeleteGroup}
-            onRestore={onRestore}
-            notice={notice}
-            onPlot={(k, row) => {
-              setActiveGroup(k);
-              setRowKey(row);
-              setView("detail");
-            }}
-          />
-        )}
-        {view === "results" && group && (
-          <ResultsView
-            std={std}
-            group={group}
-            results={results}
-            onOpen={(k) => {
-              setRowKey(k);
-              setView("detail");
-            }}
-            onCompare={() => setView("compare")}
-          />
-        )}
-        {view === "detail" && group && currentRow && (
-          <DetailView
-            std={std}
-            group={group}
-            results={results}
-            rowKey={currentRow}
-            traces={traces}
-            onSelect={setRowKey}
-            onSetDates={setDates}
-            colors={ws.traceColors}
-            onColor={setTraceColor}
-            onPick={(rowKey, field, id) =>
-              setGroups((gs) =>
-                gs.map((g) => (g.key === group.key ? { ...g, rows: g.rows.map((x) => (x.key === rowKey ? { ...x, [field]: id } : x)) } : g)),
-              )
-            }
-          />
-        )}
-        {view === "trend" && group && (
-          <TrendView std={std} group={group} traces={traces} mode={mode} />
-        )}
-        {view === "compare" && group && <CompareView std={std} group={group} traces={traces} mode={mode} colors={ws.traceColors} onColor={setTraceColor} />}
-        {view === "report" && group && info && (
-          <ReportView
-            std={std}
-            group={group}
-            results={results}
-            info={info}
-            onInfo={(next) => {
-              const base = defaultInfo(group, traces, std);
-              const diff = Object.fromEntries(Object.entries(next).filter(([k, v]) => base[k as keyof ReportInfo] !== v));
-              setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: diff } }));
-            }}
-            onReset={() => setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: {} } }))}
-            colors={ws.traceColors}
-          />
-        )}
-        {view === "standards" && (
-          <StandardsView
-            std={std}
-            profiles={ws.profiles}
-            onDeleteProfile={(id) => setWs((w) => ({ ...w, profiles: w.profiles.filter((p) => p.id !== id) }))}
-            onSaveRules={async (text) => {
-              const v = await validateStandards(text, probeStandards);
-              if (v.std) {
-                setStd(v.std);
-                setWs((w) => ({ ...w, customRules: text }));
+      <div className="content">
+        {/* stays at the top while the page scrolls: menu toggle, current screen, transformer in work */}
+        <header className="topbar">
+          <div className="topbar-inner">
+            <button
+              type="button"
+              className="rail-toggle"
+              aria-controls="rail"
+              aria-expanded={railOpen}
+              title={railOpen ? "Ẩn menu" : "Hiện menu"}
+              onClick={toggleRail}
+            >
+              <RailIcon open={railOpen} />
+              <span className="visually-hidden">{railOpen ? "Ẩn menu" : "Hiện menu"}</span>
+            </button>
+            {!railOpen && (
+              <span className="topbar-brand">
+                <BrandMark />
+                <span>SFRA Analyzer</span>
+              </span>
+            )}
+            <span className="topbar-view">{viewLabel}</span>
+            {group && (
+              <span className="topbar-context">
+                <span className="topbar-tx">
+                  Máy {info?.name && info.name !== group.key ? `${info.name} (${group.key})` : group.key}
+                </span>
+                {group.sessions.length > 1 && (
+                  <span className="topbar-sessions">
+                    {sessionLabel(group.baselineSession)} → {sessionLabel(group.testSession)}
+                  </span>
+                )}
+                {worst[group.key] && <LevelBadge c={worst[group.key]} />}
+              </span>
+            )}
+          </div>
+        </header>
+        <main className="main">
+          {/* a new screen starts without the error of the previous one */}
+          <ErrorBoundary key={view} onHome={() => setView("overview")}>
+          {showPlate && group && info && (
+            <Nameplate
+              group={group}
+              name={info.name}
+              manufacturer={info.manufacturer}
+              year={info.year}
+              worst={worst[group.key] ?? null}
+              mode={mode}
+              onMode={setMode}
+              onSessions={(b, t) => setGroups((gs) => gs.map((g) => (g.key === group.key ? setSessions(g, traces, b, t) : g)))}
+            />
+          )}
+          {view === "overview" && (
+            <OverviewView
+              std={std}
+              groups={live}
+              traces={traces}
+              worst={worst}
+              traceCount={traceCount}
+              mode={mode}
+              storage={storage}
+              busy={busy}
+              errors={errors}
+              onImport={() => setView("import")}
+              onOpen={(k) => {
+                setActiveGroup(k);
+                setView("results");
+              }}
+              onTrend={(k) => {
+                setActiveGroup(k);
+                setView("trend");
+              }}
+              onBackup={onBackup}
+              onRestore={onRestore}
+            />
+          )}
+          {view === "import" && (
+            <ImportView
+              std={std}
+              traces={traces}
+              groups={live}
+              roles={ws.fileRoles}
+              errors={errors}
+              busy={busy}
+              onFiles={onFiles}
+              onGroups={setGroups}
+              onSetDate={(ids, d) => setDates(ids.map((id) => [id, d]))}
+              onSetDates={setDates}
+              onRemove={onRemove}
+              onClear={onClear}
+              pending={pending}
+              onMap={onMap}
+              onSkipPending={(item) => setPending((prev) => prev.filter((x) => x !== item))}
+              onSetMeasurement={(id, m) => {
+                const original = parsed.find((t) => t.id === id);
+                setWs((w) => {
+                  const edits = { ...w.measurementEdits };
+                  // null, or back to what the file says: drop the edit
+                  if (m && original && !sameMeasurementId(m, measurementIdOf(original))) edits[id] = m;
+                  else delete edits[id];
+                  return { ...w, measurementEdits: edits };
+                });
+              }}
+              onSetTransformer={(shas, key, from) => {
+                const original = new Map(parsed.map((t) => [t.sha256, t.transformerKey]));
+                setWs((w) => {
+                  const tx = { ...w.txEdits };
+                  for (const sha of shas) {
+                    // empty, or back to the value in the file: drop the edit
+                    if (key.trim() && key.trim() !== original.get(sha)) tx[sha] = key.trim();
+                    else delete tx[sha];
+                  }
+                  return { ...w, txEdits: tx };
+                });
+                if (from && activeGroup === from) setActiveGroup(key.trim() || null);
+              }}
+              onAnalyze={(k) => {
+                setActiveGroup(k);
+                setView("results");
+              }}
+              onCompare={(k) => {
+                setActiveGroup(k);
+                setView("compare");
+              }}
+              onSaveGroup={onSaveGroup}
+              onSaveAll={onSaveAll}
+              onDeleteGroup={onDeleteGroup}
+              onRestore={onRestore}
+              notice={notice}
+              onPlot={(k, row) => {
+                setActiveGroup(k);
+                setRowKey(row);
+                setView("detail");
+              }}
+            />
+          )}
+          {view === "results" && group && (
+            <ResultsView
+              std={std}
+              group={group}
+              results={results}
+              onOpen={(k) => {
+                setRowKey(k);
+                setView("detail");
+              }}
+              onCompare={() => setView("compare")}
+            />
+          )}
+          {view === "detail" && group && currentRow && (
+            <DetailView
+              std={std}
+              group={group}
+              results={results}
+              rowKey={currentRow}
+              traces={traces}
+              onSelect={setRowKey}
+              onSetDates={setDates}
+              colors={ws.traceColors}
+              onColor={setTraceColor}
+              onPick={(rowKey, field, id) =>
+                setGroups((gs) =>
+                  gs.map((g) => (g.key === group.key ? { ...g, rows: g.rows.map((x) => (x.key === rowKey ? { ...x, [field]: id } : x)) } : g)),
+                )
               }
-              return v.problems;
-            }}
-            onResetRules={async () => {
-              setStd(await loadStandards());
-              setWs((w) => ({ ...w, customRules: null }));
-            }}
-          />
-        )}
-        </ErrorBoundary>
-      </main>
+            />
+          )}
+          {view === "trend" && group && (
+            <TrendView std={std} group={group} traces={traces} mode={mode} />
+          )}
+          {view === "compare" && group && <CompareView std={std} group={group} traces={traces} mode={mode} colors={ws.traceColors} onColor={setTraceColor} />}
+          {view === "report" && group && info && (
+            <ReportView
+              std={std}
+              group={group}
+              results={results}
+              info={info}
+              onInfo={(next) => {
+                const base = defaultInfo(group, traces, std);
+                const diff = Object.fromEntries(Object.entries(next).filter(([k, v]) => base[k as keyof ReportInfo] !== v));
+                setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: diff } }));
+              }}
+              onReset={() => setWs((w) => ({ ...w, infoEdits: { ...w.infoEdits, [group.key]: {} } }))}
+              colors={ws.traceColors}
+            />
+          )}
+          {view === "standards" && (
+            <StandardsView
+              std={std}
+              profiles={ws.profiles}
+              onDeleteProfile={(id) => setWs((w) => ({ ...w, profiles: w.profiles.filter((p) => p.id !== id) }))}
+              onSaveRules={async (text) => {
+                const v = await validateStandards(text, probeStandards);
+                if (v.std) {
+                  setStd(v.std);
+                  setWs((w) => ({ ...w, customRules: text }));
+                }
+                return v.problems;
+              }}
+              onResetRules={async () => {
+                setStd(await loadStandards());
+                setWs((w) => ({ ...w, customRules: null }));
+              }}
+            />
+          )}
+          </ErrorBoundary>
+        </main>
+      </div>
     </div>
   );
 }
