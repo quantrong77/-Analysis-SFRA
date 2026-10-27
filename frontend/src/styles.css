@@ -1227,7 +1227,7 @@ textarea.yaml-edit {
   margin-top: 14px;
 }
 .plot-stage .plot {
-  border: 1px solid #b7c9db;
+  border: 1.5px solid #b7c9db;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .plot-stage .plot:hover,
