@@ -2696,3 +2696,53 @@ ol.refs + p {
     border-left: none;
   }
 }
+
+/* theory contents pinned under the header; folds to one line ending in "…" */
+.toc-bar {
+  position: sticky;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 -2px;
+  padding: 8px 8px 8px 14px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--winding);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 10px -8px rgba(27, 39, 51, 0.35);
+}
+.toc-bar .toc {
+  flex: 1;
+  min-width: 0;
+  padding-top: 7px;
+}
+.toc a[aria-current="location"] {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--winding);
+  text-underline-offset: 3px;
+}
+.toc-bar.collapsed .toc {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toc-bar.collapsed .toc a {
+  margin-right: 16px;
+}
+.toc-toggle {
+  flex: none;
+}
+/* while the contents are pinned, in-page jumps stop below the header and the contents */
+html {
+  scroll-padding-top: var(--toc-offset, 64px);
+}
+button.link.toc-more {
+  margin-right: 12px;
+  padding: 0 2px;
+  font-weight: 600;
+  text-decoration: none;
+}

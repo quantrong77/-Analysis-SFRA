@@ -1,4 +1,5 @@
 /** Module 1: theory and standards, every statement with the clause it comes from. */
+import { useEffect, useRef, useState } from "react";
 import { fmtHzShort } from "../../core/quality";
 import { frequencyPartitions, type Standards } from "../../core/standards";
 import { TRAINING } from "../../core/training/content";
@@ -26,21 +27,139 @@ const dbText = (r: number) => {
   return `${exact ? "" : "≈ "}${v > 0.05 ? "+" : ""}${v.toFixed(0)}`.replace("-", "−");
 };
 
+const TOC_KEY = "sfra.tocCollapsed";
+
+/**
+ * Table of contents pinned under the header while the theory scrolls, with the section in view
+ * marked. It folds to one line ending in "…" so it covers little of the page; the choice is remembered.
+ */
+function PinnedToc({ links }: { links: { id: string; title: string }[] }) {
+  const [collapsed, setCollapsed] = useState(() => {
+    // folded at first on a phone, where the full list would cover much of the screen
+    const narrow = typeof matchMedia === "function" && matchMedia("(max-width: 600px)").matches;
+    try {
+      const saved = localStorage.getItem(TOC_KEY);
+      return saved === null ? narrow : saved === "1";
+    } catch {
+      return narrow;
+    }
+  });
+  const [top, setTop] = useState(0);
+  const [current, setCurrent] = useState(links[0]?.id);
+  const bar = useRef<HTMLDivElement>(null);
+
+  // sits right under the fixed header, whose height changes when it wraps on narrow screens
+  useEffect(() => {
+    const head = document.querySelector<HTMLElement>(".topbar");
+    if (!head) return;
+    const fit = () => setTop(head.offsetHeight);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(head);
+    return () => ro.disconnect();
+  }, []);
+
+  // sections jumped to from the contents stop below the header and the contents, not under them
+  useEffect(() => {
+    const el = bar.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty("--toc-offset", `${top + el.offsetHeight + 12}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--toc-offset");
+    };
+  }, [top]);
+
+  // the section in view: the last one whose top has passed under the contents
+  useEffect(() => {
+    let frame = 0;
+    const look = () => {
+      frame = 0;
+      const line = top + (bar.current?.offsetHeight ?? 0) + 24;
+      let id = links[0]?.id;
+      for (const l of links) {
+        const el = document.getElementById(`th-${l.id}`);
+        if (el && el.getBoundingClientRect().top <= line) id = l.id;
+      }
+      // at the very bottom the last sections are too short to reach the line: the last one is in view
+      const root = document.documentElement;
+      if (window.scrollY > 0 && window.innerHeight + window.scrollY >= root.scrollHeight - 2) id = links[links.length - 1]?.id;
+      setCurrent(id);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(look);
+    };
+    look();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [links, top]);
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(TOC_KEY, next ? "1" : "0");
+    } catch {
+      /* not remembered: folds back to the default next time */
+    }
+  };
+
+  const at = Math.max(0, links.findIndex((l) => l.id === current));
+  const shown = collapsed ? { start: at, links: links.slice(at) } : { start: 0, links };
+
+  return (
+    <div ref={bar} className={collapsed ? "toc-bar collapsed" : "toc-bar"} style={{ top }}>
+      <nav className="toc" id="theory-toc" aria-label="Mục lục lý thuyết">
+        {/* folded: the line starts at the section being read, "…" in front standing for the ones before it */}
+        {collapsed && shown.start > 0 && (
+          <button type="button" className="link toc-more" onClick={toggle} aria-label="Các mục phía trước, mở rộng mục lục">
+            …
+          </button>
+        )}
+        {shown.links.map((l) => (
+          <a key={l.id} href={`#th-${l.id}`} aria-current={current === l.id ? "location" : undefined}>
+            {l.title}
+          </a>
+        ))}
+      </nav>
+      <button
+        type="button"
+        className="tool-btn toc-toggle"
+        aria-controls="theory-toc"
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Mở rộng mục lục" : "Thu gọn mục lục còn một dòng"}
+        data-tip={collapsed ? "Mở rộng mục lục" : "Thu gọn còn một dòng"}
+        onClick={toggle}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d={collapsed ? "M5 8l5 5 5-5" : "M5 12l5-5 5 5"} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+const TOC_LINKS = [
+  ...TRAINING.theory.map((s) => ({ id: s.id, title: s.title })),
+  { id: "zones", title: "Ảnh hưởng theo vùng tần số" },
+  { id: "partitions", title: "So sánh cách chia dải" },
+  { id: "bibliography", title: "Tài liệu tham khảo" },
+];
+
 export default function TheoryTab({ std, onOpenLab }: { std: Standards; onOpenLab?: () => void }) {
   const iec = std.iec_zones ?? {};
   const zones = Object.values((iec.zones ?? {}) as Record<string, { label: string; f_min: number; f_max: number; influence?: string }>);
   return (
     <div className="training-tab">
-      <nav className="toc" aria-label="Mục lục lý thuyết">
-        {TRAINING.theory.map((s) => (
-          <a key={s.id} href={`#th-${s.id}`}>
-            {s.title}
-          </a>
-        ))}
-        <a href="#th-zones">Ảnh hưởng theo vùng tần số</a>
-        <a href="#th-partitions">So sánh cách chia dải</a>
-        <a href="#th-bibliography">Tài liệu tham khảo</a>
-      </nav>
+      <PinnedToc links={TOC_LINKS} />
 
       {TRAINING.theory.map((s) => (
         <section key={s.id} id={`th-${s.id}`} className="theory-section">
