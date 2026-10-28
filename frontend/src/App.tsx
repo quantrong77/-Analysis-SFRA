@@ -17,6 +17,7 @@ import ResultsView from "./views/ResultsView";
 import ReportView from "./views/ReportView";
 import StandardsView from "./views/StandardsView";
 import TrainingView from "./views/TrainingView";
+import HelpView from "./views/HelpView";
 import TrendView from "./views/TrendView";
 import CompareView from "./views/CompareView";
 import { defaultInfo, type ReportInfo } from "./report/info";
@@ -28,20 +29,22 @@ import Nameplate from "./components/Nameplate";
 import { BrandMark, ICONS, RailIcon } from "./components/Icons";
 import { LevelBadge } from "./components/common";
 
-type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "training" | "standards";
+type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "training" | "standards" | "help" | "about";
 
 const RAIL_KEY = "sfra.rail";
 
 const NAV: { id: View; label: string }[] = [
   { id: "overview", label: "Tổng quan" },
+  { id: "training", label: "Huấn luyện" },
   { id: "import", label: "Nhập dữ liệu" },
   { id: "results", label: "Kết quả kỳ đo" },
   { id: "detail", label: "Chi tiết phép đo" },
   { id: "trend", label: "Xu hướng" },
   { id: "compare", label: "So sánh tham khảo" },
   { id: "report", label: "Báo cáo" },
-  { id: "training", label: "Huấn luyện" },
   { id: "standards", label: "Cấu hình" },
+  { id: "help", label: "Hướng dẫn sử dụng" },
+  { id: "about", label: "Giới thiệu" },
 ];
 
 /** Exercise a ruleset on fixed values so an edited YAML that cannot run is rejected before use. */
@@ -729,6 +732,7 @@ export default function App() {
               colors={ws.traceColors}
             />
           )}
+          {(view === "help" || view === "about") && <HelpView key={view} std={std} initial={view === "help" ? "guide" : "about"} />}
           {view === "training" && <TrainingView std={std} mode={mode} profiles={ws.profiles} />}
           {view === "standards" && (
             <StandardsView

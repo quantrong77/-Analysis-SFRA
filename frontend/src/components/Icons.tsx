@@ -55,6 +55,20 @@ export const ICONS: Record<string, JSX.Element> = {
       <path d="M12 6.5V19" />
     </svg>
   ),
+  help: (
+    <svg viewBox="0 0 24 24" aria-hidden {...P}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.7" />
+      <circle cx="12" cy="16.8" r=".6" />
+    </svg>
+  ),
+  about: (
+    <svg viewBox="0 0 24 24" aria-hidden {...P}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5" />
+      <circle cx="12" cy="7.8" r=".6" />
+    </svg>
+  ),
   standards: (
     <svg viewBox="0 0 24 24" aria-hidden {...P}>
       <path d="M5 7h9M18 7h1M5 12h3M12 12h7M5 17h11M20 17h-1" />

@@ -2131,3 +2131,108 @@ ul.reasons li.disagree::before {
   content: "✗";
   color: var(--v-severe);
 }
+
+/* ---------- user guide and about ---------- */
+.help {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+ol.guide-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.guide-step {
+  counter-increment: step;
+  position: relative;
+  padding: 16px 18px 16px 62px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.guide-step::before {
+  content: counter(step);
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--winding);
+  color: #fff;
+  font-family: var(--font-cond);
+  font-weight: 700;
+}
+.guide-step h2 {
+  margin: 2px 0 2px;
+}
+.guide-step ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  max-width: 100ch;
+}
+.guide-step li + li {
+  margin-top: 6px;
+}
+.faq {
+  margin: 0;
+}
+.faq div + div {
+  margin-top: 12px;
+}
+.faq dt {
+  font-weight: 600;
+}
+.faq dd {
+  margin: 2px 0 0;
+  max-width: 100ch;
+}
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.about-card {
+  border-top: 3px solid var(--winding);
+}
+.about-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 18px;
+  margin: 0;
+}
+.about-facts dt {
+  color: var(--muted);
+}
+.about-facts dd {
+  margin: 0;
+  font-weight: 500;
+}
+ol.refs {
+  margin: 0;
+  padding-left: 22px;
+  max-width: 110ch;
+}
+ol.refs li + li {
+  margin-top: 4px;
+}
+@media (max-width: 560px) {
+  .guide-step {
+    padding-left: 18px;
+    padding-top: 54px;
+  }
+}
+ol.refs + p {
+  margin-top: 12px;
+}
+.about-facts a {
+  color: var(--winding);
+}
