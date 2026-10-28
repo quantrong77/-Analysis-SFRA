@@ -83,6 +83,9 @@ describe("hư hỏng mô phỏng thay đổi đúng vùng tần số IEEE C57.14
 describe("nội dung huấn luyện", () => {
   it("mỗi mục lý thuyết, cấu hình đo, hư hỏng, khuyến nghị đều có nguồn", () => {
     for (const s of TRAINING.theory) for (const i of s.items) expect(i.source.length).toBeGreaterThan(5);
+    // every theory source names a document of the bibliography
+    const keys = TRAINING.bibliography.map((b) => b.key);
+    for (const s of TRAINING.theory) for (const i of s.items) expect(keys.some((k) => i.source.startsWith(k)), i.source).toBe(true);
     for (const s of TRAINING.setups) expect(s.source).toMatch(/IEC|IEEE/);
     for (const g of TRAINING.checklist) for (const i of g.items) expect(i.source).toMatch(/IEC|IEEE/);
     for (const x of TRAINING.faults) expect(x.source.length).toBeGreaterThan(5);

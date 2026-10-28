@@ -4,7 +4,7 @@
 
 meta:
   title: "Huấn luyện SFRA"
-  note: "Nội dung dịch từ IEC 60076-18:2012, IEEE Std C57.149-2012 và CIGRE TB 812; mỗi mục ghi điều khoản để tra bản gốc."
+  note: "Nội dung dịch từ IEC 60076-18:2012, IEEE Std C57.149-2012, CIGRE TB 342 và TB 812, cùng các giáo trình tín hiệu và mạch điện; mỗi mục ghi điều khoản hoặc mục sách để tra bản gốc."
 
 theory:
   - id: purpose
@@ -18,6 +18,72 @@ theory:
         source: "IEC 60076-18:2012, 3"
       - text: "FRA là phương pháp so sánh, cần một chuẩn để so: lần đo trước trên cùng cuộn dây, pha khác của cùng máy, hoặc máy giống hệt."
         source: "CIGRE TB 812, 6.1"
+
+  - id: signals
+    title: "Miền thời gian và miền tần số"
+    items:
+      - text: "Trong miền thời gian, tín hiệu được mô tả bằng giá trị tức thời theo thời gian, ví dụ điện áp v(t) hiện trên máy hiện sóng."
+        source: "Oppenheim & Willsky (1997), chương 1"
+      - text: "Trong miền tần số, cùng tín hiệu đó được biểu diễn thành tổng các thành phần hình sin (hàm mũ phức); mỗi tần số có một biên độ và một góc pha. Chuỗi Fourier dùng cho tín hiệu tuần hoàn, biến đổi Fourier dùng cho tín hiệu không tuần hoàn."
+        source: "Oppenheim & Willsky (1997), chương 3 và 4"
+      - text: "Biến đổi Fourier và biến đổi ngược tạo thành một cặp: chuyển qua lại giữa hai miền mà không mất thông tin. Hai cách biểu diễn là hai cách nhìn cùng một tín hiệu."
+        source: "Oppenheim & Willsky (1997), chương 4"
+      - text: "Phương pháp xung (IFRA) ghi hai tín hiệu trong miền thời gian rồi chuyển sang miền tần số bằng biến đổi Fourier nhanh (FFT). Phương pháp quét tần số (SFRA) đo trực tiếp trong miền tần số: đưa vào từng tín hiệu hình sin và đo biên độ, góc pha của tín hiệu truyền qua so với tín hiệu đưa vào."
+        source: "CIGRE TB 342, 1.3 và 1.6"
+      - text: "Về nguyên tắc, khi mọi điều kiện khác như nhau, phương pháp quét tần số và phương pháp xung cho cùng một kết quả; điều này đã được chứng minh nhiều lần."
+        source: "CIGRE TB 342, 1.6"
+
+  - id: transfer
+    title: "Hàm truyền"
+    items:
+      - text: "Với hệ tuyến tính bất biến theo thời gian (LTI), tín hiệu vào là hàm mũ phức (hình sin) cho tín hiệu ra cùng tần số, chỉ nhân thêm một hệ số phức H(jω): biên độ nhân với |H|, góc pha cộng thêm arg H."
+        source: "Oppenheim & Willsky (1997), 3.2"
+      - text: "Hàm truyền H(ω) là tỉ số giữa phasor đầu ra và phasor đầu vào theo tần số, H(ω) = Y(ω)/X(ω). H là số phức nên có hai phần: đáp ứng biên độ |H(ω)| và đáp ứng pha φ(ω)."
+        source: "Alexander & Sadiku (2013), 14.2"
+      - text: "Trong miền thời gian, đầu ra là tích chập của đầu vào với đáp ứng xung h(t). Trong miền tần số, tích chập trở thành phép nhân: Y(jω) = H(jω)·X(jω), với H(jω) là biến đổi Fourier của h(t). Đáp ứng xung, hay hàm truyền, mô tả đầy đủ một hệ LTI."
+        source: "Oppenheim & Willsky (1997), chương 2 và 4.4"
+      - text: "Đáp ứng tần số là tỉ số biên độ và độ lệch pha giữa điện áp đo ở hai đầu cực của đối tượng thử trên một dải tần, khi một đầu cực được kích thích bằng nguồn áp. Kết quả đo là chuỗi tỉ số biên độ và độ lệch pha tại các tần số cụ thể."
+        source: "IEC 60076-18:2012, 2.1"
+      - text: "Hàm truyền FRA là hàm phức của tần số, gồm biên độ FRA và góc pha FRA."
+        source: "IEEE Std C57.149-2012, 2"
+      - text: "Hàm truyền FRA cho thông tin chẩn đoán về mạng RLC của đối tượng thử; mạng này gắn liền với hình học và kết cấu của nó. Thay đổi vật lý bên trong làm mạng RLC thay đổi và từ đó có thể làm hàm truyền thay đổi."
+        source: "IEEE Std C57.149-2012, 3"
+      - text: "Tần số cộng hưởng FRA là các cực đại hoặc cực tiểu của biên độ, đi kèm góc pha bằng không. Tại đó trở kháng cảm và trở kháng dung bằng nhau về độ lớn, nhìn từ đầu cực tổng trở kháng phản kháng bằng không hoặc vô cùng."
+        source: "IEEE Std C57.149-2012, 2"
+
+  - id: why_frequency
+    title: "Vì sao phân tích trong miền tần số"
+    items:
+      - text: "FRA đo sự phụ thuộc theo tần số (tới MHz) của đáp ứng, tức hàm truyền, của cuộn dây với tín hiệu đưa vào, nhằm phát hiện biến dạng cuộn dây qua ảnh hưởng của nó tới phân bố điện dung và điện cảm."
+        source: "CIGRE TB 342, 1.3"
+      - text: "Phương pháp xung điện áp thấp (LVI) phân tích trong miền thời gian được coi là rất nhạy nhưng khó đạt độ lặp lại và khó diễn giải. FRA có độ lặp lại tốt hơn với cùng độ nhạy, và dễ diễn giải hơn vì làm việc trong miền tần số thay vì miền thời gian."
+        source: "CIGRE TB 342, 1.5, Bảng 1"
+      - text: "Đáp ứng tần số tính từ hai xung đo được không phụ thuộc vào dạng xung đưa vào, nên kết quả gắn với đối tượng thử nhiều hơn là với cách bố trí đo; nhờ đó việc diễn giải đơn giản hơn và độ lặp lại tốt hơn."
+        source: "CIGRE TB 342, 1.6"
+      - text: "Các cộng hưởng chính của máy biến áp thường phân bố theo thang logarit, nên phép quét SFRA theo thang logarit với hơn 200 điểm mỗi decade (hơn 1000 điểm tới 2 MHz) thể hiện đúng các cộng hưởng."
+        source: "CIGRE TB 342, 2.4.5"
+      - text: "Theo lý thuyết hệ thống, máy biến áp có thể coi là hệ pha tối thiểu, nên biên độ và góc pha mang thông tin trùng nhau; về lý thuyết chỉ cần đọc một trong hai. Thực tế hai đại lượng nhạy khác nhau: điện trở tiếp xúc lớn ở đầu cáp đo có thể làm biên độ cộng hưởng thay đổi đáng kể trong khi góc pha hầu như không đổi, nên xem cả hai giúp diễn giải chắc chắn hơn."
+        source: "CIGRE TB 342, 3.4.8"
+      - text: "Cả biên độ và góc pha của hàm truyền đo được đều nên được trình bày."
+        source: "IEEE Std C57.149-2012, 3.4"
+
+  - id: decibel
+    title: "Decibel (dB) và thang logarit"
+    items:
+      - text: "Ben (B) là logarit thập phân của tỉ số hai công suất; decibel (dB) bằng một phần mười ben: G = 10·log10(P2/P1) dB. Tên ben đặt theo Alexander Graham Bell."
+        source: "Alexander & Sadiku (2013), 14.3"
+      - text: "Khi hai điện áp đo trên cùng một điện trở, công suất tỉ lệ với bình phương điện áp, nên tỉ số điện áp tính bằng 20·log10(V2/V1) dB."
+        source: "Alexander & Sadiku (2013), 14.3"
+      - text: "Theo quy ước quốc tế về đại lượng logarit, mức của đại lượng trường như điện áp, dòng điện là 20·lg(F/F0) dB, mức của đại lượng công suất là 10·lg(P/P0) dB."
+        source: "IEC 60027-3:2002"
+      - text: "Vì Vout/Vin thay đổi trong dải rất rộng nên được biểu diễn bằng dB, tính bằng 20 × log10(Vout/Vin), với Vout/Vin là tỉ số độ lớn."
+        source: "IEC 60076-18:2012, 4.1, ghi chú 2"
+      - text: "Logarit biến phép nhân thành phép cộng: biên độ tính bằng dB của các khâu nối tiếp được cộng lại với nhau. Thang logarit cũng cho phép thể hiện chi tiết trên một dải động rộng."
+        source: "Oppenheim & Willsky (1997), 6.2.3"
+      - text: "Thực hành phổ biến là vẽ biên độ dB theo tần số thang logarit, gọi là đồ thị Bode. Đồ thị Bode giúp xem cộng hưởng dễ hơn vì đơn giản hóa việc hiển thị các trở kháng biến thiên theo hàm mũ, và được dùng rộng rãi trong nhiều ngành để phân tích hàm truyền."
+        source: "IEEE Std C57.149-2012, 6.3.1"
+      - text: "Thang biên độ dB phù hợp khi sai lệch trải trên một dải biên độ rộng. Thang tần số logarit cho mọi decade trọng số như nhau, còn thang tuyến tính dồn sự chú ý vào decade cao nhất (từ 100 kHz trở lên). Để xem tổng quát kết quả FRA nên dùng thang logarit cho cả hai trục."
+        source: "CIGRE TB 342, 3.2.1"
 
   - id: measurement
     title: "Đáp ứng tần số được đo thế nào"
@@ -78,6 +144,25 @@ theory:
         source: "IEEE Std C57.149-2012, 6.3.6"
       - text: "Kết quả FRA dùng để xác nhận kết quả các thí nghiệm khác: dòng không tải một pha (so với vùng thấp của phép đo hở mạch phía cao áp), tỉ số biến (so với phép đo cảm ứng giữa các cuộn), tổng trở ngắn mạch hay điện kháng tản (so với vùng thấp của phép đo ngắn mạch), điện trở một chiều (khi phép đo ngắn mạch nằm ngang dưới 30 Hz)."
         source: "IEEE Std C57.149-2012, 6.4"
+
+# Danh mục tài liệu các nguồn ở phần lý thuyết. Số mục của giáo trình theo đúng lần xuất bản ghi ở đây.
+bibliography:
+  - key: "IEC 60076-18:2012"
+    text: "IEC 60076-18:2012. Power transformers – Part 18: Measurement of frequency response. IEC, Genève."
+  - key: "IEEE Std C57.149-2012"
+    text: "IEEE Std C57.149-2012. IEEE Guide for the Application and Interpretation of Frequency Response Analysis for Oil-Immersed Transformers. IEEE, New York, 2013."
+  - key: "CIGRE TB 342"
+    text: "CIGRE Technical Brochure 342 (WG A2.26). Mechanical condition assessment of transformer windings using Frequency Response Analysis (FRA). CIGRE, Paris, 04/2008."
+  - key: "CIGRE TB 812"
+    text: "CIGRE Technical Brochure 812 (WG A2.53). Advances in the interpretation of transformer Frequency Response Analysis (FRA). CIGRE, Paris, 09/2020. ISBN 978-2-85873-517-4."
+  - key: "DL/T 911-2004"
+    text: "DL/T 911-2004. Frequency response analysis on winding deformation of power transformers."
+  - key: "IEC 60027-3:2002"
+    text: "IEC 60027-3:2002. Letter symbols to be used in electrical technology – Part 3: Logarithmic and related quantities, and their units. IEC, Genève."
+  - key: "Oppenheim & Willsky (1997)"
+    text: "A. V. Oppenheim, A. S. Willsky, S. H. Nawab. Signals and Systems, 2nd ed. Prentice Hall, 1997."
+  - key: "Alexander & Sadiku (2013)"
+    text: "C. K. Alexander, M. N. O. Sadiku. Fundamentals of Electric Circuits, 5th ed. McGraw-Hill, 2013."
 
 setups:
   - id: e2e_open

@@ -81,6 +81,8 @@ export interface Training {
   theory: TheorySection[];
   setups: Setup[];
   checklist: { group: string; items: Sourced[] }[];
+  /** full entries of the documents the theory cites, by the short name used in `source` */
+  bibliography: { key: string; text: string }[];
   bands: AnswerBand[];
   bands_source: string;
   faults: FaultInfo[];

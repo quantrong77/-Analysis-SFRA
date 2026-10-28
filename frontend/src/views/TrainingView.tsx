@@ -1,4 +1,4 @@
-/** Training: theory, measurement setups, fault simulator, exercises and their authoring. */
+/** Training: theory, transfer-function lab, measurement setups, fault simulator, exercises and their authoring. */
 import { useState } from "react";
 import type { CsvProfile } from "../core/parsers";
 import type { GridMode } from "../core/resample";
@@ -9,9 +9,11 @@ import ExerciseTab from "./training/ExerciseTab";
 import SetupTab from "./training/SetupTab";
 import SimulatorTab from "./training/SimulatorTab";
 import TheoryTab from "./training/TheoryTab";
+import TransferLab from "./training/TransferLab";
 
 const TABS = [
   { id: "theory", label: "Lý thuyết" },
+  { id: "lab", label: "Lab hàm truyền" },
   { id: "setup", label: "Cấu hình đo" },
   { id: "sim", label: "Giả lập hư hỏng" },
   { id: "exercise", label: "Bài tập" },
@@ -43,7 +45,8 @@ export default function TrainingView({ std, mode, profiles }: { std: Standards; 
         ))}
       </div>
       <section className="tab-panel" role="tabpanel" id={`tpanel-${tab}`} aria-labelledby={`ttab-${tab}`}>
-        {tab === "theory" && <TheoryTab std={std} />}
+        {tab === "theory" && <TheoryTab std={std} onOpenLab={() => setTab("lab")} />}
+        {tab === "lab" && <TransferLab />}
         {tab === "setup" && <SetupTab />}
         {tab === "sim" && <SimulatorTab std={std} />}
         {/* exercise and authoring keep their state while switching between the other tabs */}

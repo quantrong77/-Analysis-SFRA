@@ -119,3 +119,81 @@ export function SetupDiagram({ setup }: { setup: Setup }) {
     </svg>
   );
 }
+
+/**
+ * One signal seen two ways: in time, the sum of three sines (f, 3f, 5f with amplitudes 1, 1/3, 1/5);
+ * in frequency, the same three components as bars of amplitude at their frequencies.
+ */
+export function TimeFreqDiagram() {
+  const comps = [
+    { k: 1, a: 1 },
+    { k: 3, a: 1 / 3 },
+    { k: 5, a: 1 / 5 },
+  ];
+  const x0 = 34;
+  const w = 250;
+  const y0 = 120;
+  const A = 62;
+  const wave = (fn: (p: number) => number) => {
+    let d = "";
+    for (let i = 0; i <= 200; i++) {
+      const p = (i / 200) * 2;
+      d += `${i ? "L" : "M"}${(x0 + (p / 2) * w).toFixed(1)} ${(y0 - A * fn(p)).toFixed(1)}`;
+    }
+    return d;
+  };
+  const sum = (p: number) => comps.reduce((s, c) => s + c.a * Math.sin(2 * Math.PI * c.k * p), 0);
+  const fx = (k: number) => 384 + (k - 1) * 46;
+  return (
+    <svg
+      className="diagram tf-diagram"
+      viewBox="0 0 640 230"
+      role="img"
+      aria-label="Cùng một tín hiệu: bên trái theo thời gian là tổng ba sóng sin tần số f, 3f, 5f; bên phải theo tần số là ba vạch biên độ 1, 1/3, 1/5"
+    >
+      <text x={x0} y="22" className="dg-label strong">
+        Miền thời gian: v(t)
+      </text>
+      <line x1={x0} x2={x0 + w} y1={y0} y2={y0} className="tf-axis" />
+      <line x1={x0} x2={x0} y1={y0 - A - 16} y2={y0 + A + 16} className="tf-axis" />
+      {comps.map((c) => (
+        <path key={c.k} d={wave((p) => c.a * Math.sin(2 * Math.PI * c.k * p))} className={`tf-comp k${c.k}`} />
+      ))}
+      <path d={wave(sum)} className="tf-sum" />
+      <text x={x0 + w} y={y0 + A + 34} textAnchor="end" className="dg-label small">
+        thời gian t →
+      </text>
+
+      <g className="tf-arrows">
+        <path d="M300 104 H346 M340 98 l6 6 l-6 6" />
+        <path d="M346 136 H300 M306 130 l-6 6 l6 6" />
+      </g>
+      <text x="323" y="94" textAnchor="middle" className="dg-label small">
+        Fourier
+      </text>
+      <text x="323" y="160" textAnchor="middle" className="dg-label small">
+        ngược
+      </text>
+
+      <text x="372" y="22" className="dg-label strong">
+        Miền tần số: biên độ theo f
+      </text>
+      <line x1="372" x2="624" y1={y0 + A} y2={y0 + A} className="tf-axis" />
+      <line x1="372" x2="372" y1={y0 - A - 16} y2={y0 + A} className="tf-axis" />
+      {comps.map((c) => (
+        <g key={c.k}>
+          <rect x={fx(c.k) - 9} y={y0 + A - 2 * A * c.a} width="18" height={2 * A * c.a} className={`tf-bar k${c.k}`} />
+          <text x={fx(c.k)} y={y0 + A - 2 * A * c.a - 6} textAnchor="middle" className="dg-label small">
+            {c.k === 1 ? "1" : `1/${c.k}`}
+          </text>
+          <text x={fx(c.k)} y={y0 + A + 18} textAnchor="middle" className="dg-label small">
+            {c.k === 1 ? "f" : `${c.k}f`}
+          </text>
+        </g>
+      ))}
+      <text x="624" y={y0 + A + 34} textAnchor="end" className="dg-label small">
+        tần số →
+      </text>
+    </svg>
+  );
+}
