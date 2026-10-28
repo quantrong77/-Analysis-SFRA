@@ -48,6 +48,13 @@ export const ICONS: Record<string, JSX.Element> = {
       <path d="M14 3v4h4M10 12h5M10 15h5M10 18h3" />
     </svg>
   ),
+  // open book: the training material
+  training: (
+    <svg viewBox="0 0 24 24" aria-hidden {...P}>
+      <path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5Z" />
+      <path d="M12 6.5V19" />
+    </svg>
+  ),
   standards: (
     <svg viewBox="0 0 24 24" aria-hidden {...P}>
       <path d="M5 7h9M18 7h1M5 12h3M12 12h7M5 17h11M20 17h-1" />

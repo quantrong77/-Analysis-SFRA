@@ -3,6 +3,7 @@ import { bodeFigure, curveColor, diffFigure, extraName, peakMarkers, type Backdr
 import { PeakTable, Tb812Table } from "../components/IndexTables";
 import Plot from "../components/Plot";
 import { PlotPanel, useLineWidth, type CurveSwatch } from "../components/PlotTools";
+import IeeeMatch from "../components/IeeeMatch";
 import { DateTimeInput } from "../components/DateTime";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import type { PairResult } from "../core/analysis";
@@ -34,11 +35,12 @@ interface Props {
 const levelColor = (id: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(`--v-${id}`).trim() || "#44515e";
 
-type Tab = "compare" | "dlt911" | "peaks" | "tb812";
+type Tab = "compare" | "dlt911" | "ieee" | "peaks" | "tb812";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "compare", label: "So sánh giản đồ Bode" },
   { id: "dlt911", label: "Hệ số DL/T 911" },
+  { id: "ieee", label: "Đối chiếu dạng hư hỏng" },
   { id: "peaks", label: "Đỉnh cộng hưởng" },
   { id: "tb812", label: "Chỉ số CIGRE TB 812" },
 ];
@@ -209,6 +211,7 @@ export default function DetailView({ std, group, results, rowKey, traces, onSele
 
         {tab === "dlt911" && <Dlt911Tab r={r} std={std} />}
 
+        {tab === "ieee" && <IeeeMatch r={r} std={std} />}
         {tab === "peaks" && (
           <>
             <p className="muted small">Đặc tả mục 6.4. Ghép đỉnh/hố của lần đo với baseline và tính độ dịch tần.</p>

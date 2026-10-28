@@ -5,6 +5,7 @@ import { fmtNum, transformerConclusion } from "../core/rules";
 import type { Standards } from "../core/standards";
 import { InternalTag, LevelBadge, Warnings } from "../components/common";
 import { sessionLabel, type RowResult } from "../workspace";
+import { hint, interpret } from "../core/training/interpret";
 
 interface Props {
   std: Standards;
@@ -13,6 +14,9 @@ interface Props {
   onOpen: (rowKey: string) => void;
   onCompare: () => void;
 }
+
+/** Bands that changed and the failure modes they fit best, in one line; details in the detail screen */
+const ieeeHint = (r: Parameters<typeof interpret>[0], std: Standards): string => hint(interpret(r, std));
 
 export const MODE_OPTIONS: { value: GridMode; label: string }[] = [
   { value: "auto", label: "Tự động (A hoặc B)" },
@@ -97,6 +101,7 @@ export default function ResultsView({ std, group, results, onOpen, onCompare }: 
               ))}
               <th>Mức độ (DL/T 911 Bảng A.1)</th>
               <th>Hành động gợi ý</th>
+              <th title={std.interpretation?.source}>Đối chiếu IEEE C57.149 (tham khảo)</th>
               <th>Cảnh báo</th>
             </tr>
           </thead>
@@ -123,6 +128,7 @@ export default function ResultsView({ std, group, results, onOpen, onCompare }: 
                 })}
                 <td>{result ? <LevelBadge c={result.classification} /> : <span className="err">{error}</span>}</td>
                 <td>{result?.action}</td>
+                <td className="small">{result ? ieeeHint(result, std) : ""}</td>
                 <td>
                   <Warnings items={result?.warnings.filter((w) => w.severity === "warning") ?? []} compact />
                 </td>

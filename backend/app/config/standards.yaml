@@ -347,6 +347,29 @@ peaks:
     new: "Mới xuất hiện"
   qualitative_source: "IEEE C57.149-2012 (xuất hiện/mất đỉnh, dịch tần đỉnh là chỉ báo quan trọng); DL/T 911-2004, mục 7.4"
 
+# Đối chiếu dạng hư hỏng (gợi ý tham khảo) khi đánh giá số liệu thật: so các vùng tần số thay đổi
+# với mô tả của IEEE C57.149 6.5, Bảng 7–15. Dấu hiệu từng dạng nằm trong
+# frontend/src/core/training/training.yaml (faults[].signature).
+interpretation:
+  source: "IEEE Std C57.149-2012, 6.5, Bảng 7–15 (dải gần đúng, có thể chồng nhau; cùng một hư hỏng ảnh hưởng khác nhau tùy thiết kế máy)"
+  # một vùng coi là có thay đổi khi phân vị 90 của |ΔdB| trong vùng vượt ngưỡng này,
+  # hoặc trong vùng có cộng hưởng dịch, mất hoặc mới với trạng thái nằm trong changed_peak_status
+  db_p90_changed: 3.0
+  changed_peak_status: [alarm, lost, new]
+  internal: true
+  threshold_source: "Ngưỡng nội bộ (cấu hình được). IEC 60076-18:2012, 5.1.2 cho độ chính xác biên độ ±0,3 dB (+10 đến −40 dB) và ±1 dB (−40 đến −80 dB): chênh lệch nhỏ hơn cỡ này không phân biệt được với sai số thiết bị."
+  # cộng hưởng lõi (hố thấp nhất dưới 5 kHz) dịch lên ít nhất từng này % thì ghi nhận là dịch sang phải (dấu hiệu từ dư, IEEE 6.5.9)
+  core_shift_up_percent: 5.0
+  # nhóm phép đo không đối chiếu: các Bảng 7–15 chỉ mô tả phép đo hở mạch và ngắn mạch
+  skip_groups: [inter]
+  skip_note: "IEEE C57.149 Bảng 7–15 chỉ mô tả phép đo hở mạch và ngắn mạch; phép đo giữa các cuộn dây (xuyên cuộn) không đối chiếu."
+  # trung bình (lần đo − baseline) trong 20–200 Hz tăng ít nhất từng này dB: đường hở mạch trông như
+  # đường ngắn mạch (IEEE 6.5.6 Bảng 12; 6.5.4 Bảng 10: "open circuit core appears loaded")
+  lf_rise_db: 6.0
+  # trung bình (lần đo − baseline) trong 20 Hz – 100 kHz giảm ít nhất từng này dB: đáp ứng tụt trên dải
+  # rộng (IEEE 6.5.7, hở mạch cuộn dây)
+  broad_drop_db: 6.0
+
 # Chỉ số CIGRE TB 812 (đặc tả mục 6.3) - chỉ hiển thị giá trị, KHÔNG có ngưỡng kết luận
 tb812:
   source: "CIGRE TB 812 (2020), mục 6.2.3, Bảng 6.2, phương trình 6.3–6.19"

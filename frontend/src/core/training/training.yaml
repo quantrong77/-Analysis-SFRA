@@ -1,0 +1,410 @@
+# Nội dung phần Huấn luyện. Mỗi mục có nguồn: số điều, bảng hoặc hình của tài liệu gốc trong
+# thư mục references. Văn bản là bản dịch sát nghĩa, không thêm ngưỡng nào ngoài tài liệu.
+# Ngưỡng Rxy và mức đánh giá vẫn lấy từ backend/app/config/standards.yaml (DL/T 911-2004).
+
+meta:
+  title: "Huấn luyện SFRA"
+  note: "Nội dung dịch từ IEC 60076-18:2012, IEEE Std C57.149-2012 và CIGRE TB 812; mỗi mục ghi điều khoản để tra bản gốc."
+
+theory:
+  - id: purpose
+    title: "FRA dùng để làm gì"
+    items:
+      - text: "FRA (phân tích đáp ứng tần số) là kỹ thuật phát hiện hư hỏng bằng các phép đo đáp ứng tần số. SFRA và IFRA lần lượt dùng nguồn áp quét tần số và nguồn xung."
+        source: "IEC 60076-18:2012, 2.2"
+      - text: "FRA phát hiện thay đổi trong phần tác dụng của máy (cuộn dây, dây dẫn và lõi), thường là thay đổi hình học và ngắn mạch trong cuộn dây. Các trường hợp điển hình: hư hỏng sau sự cố dòng lớn đi qua (kể cả thử ngắn mạch), sau sự cố bộ điều áp, trong vận chuyển, sau động đất."
+        source: "IEC 60076-18:2012, 3"
+      - text: "FRA hiệu quả nhất khi có số liệu đo lúc máy còn tốt (baseline), nên đo cho mọi máy lớn tại nhà máy hoặc khi đưa vào vận hành. Không có baseline thì có thể lấy kết quả của máy tương tự hoặc của pha khác cùng máy làm chuẩn."
+        source: "IEC 60076-18:2012, 3"
+      - text: "FRA là phương pháp so sánh, cần một chuẩn để so: lần đo trước trên cùng cuộn dây, pha khác của cùng máy, hoặc máy giống hệt."
+        source: "CIGRE TB 812, 6.1"
+
+  - id: measurement
+    title: "Đáp ứng tần số được đo thế nào"
+    items:
+      - text: "Đặt một tín hiệu điện áp thấp vào một đầu cực so với vỏ máy. Điện áp đo tại đầu vào này là tín hiệu chuẩn V_in; tín hiệu đáp ứng V_out đo tại một đầu cực khác so với vỏ. Biên độ đáp ứng là tỉ số V_out/V_in tính bằng dB, góc pha là độ lệch pha giữa V_in và V_out."
+        source: "IEC 60076-18:2012, 4.1"
+      - text: "Điện áp đáp ứng đo trên trở kháng 50 Ω; cáp đồng trục nối tới thiết bị phải phối hợp trở kháng. Biên độ tính bằng 20 × log10(V_out / V_in)."
+        source: "IEC 60076-18:2012, 4.1, ghi chú 2"
+
+  - id: circuit
+    title: "Mạch tương đương R-L-C của cuộn dây"
+    items:
+      - text: "Ở tần số thấp cuộn dây là phần tử điện cảm: đáp ứng giảm với độ dốc khoảng −20 dB mỗi decade; điện cảm càng lớn biên độ càng thấp. Có hai thành phần: điện cảm từ hóa của lõi, ảnh hưởng vùng thấp tới khoảng 100 Hz, và điện cảm tản của cuộn dây, ảnh hưởng ở tần số cao hơn."
+        source: "IEEE Std C57.149-2012, Phụ lục A"
+      - text: "Ở tần số cao cuộn dây là phần tử điện dung: đáp ứng tăng với độ dốc khoảng +20 dB mỗi decade; điện dung càng lớn biên độ càng cao."
+        source: "IEEE Std C57.149-2012, Phụ lục A"
+      - text: "Điện cảm cuộn dây song song với điện dung nối tiếp Cs tạo phản cộng hưởng song song: chặn tín hiệu ở tần số đó, thành một điểm cực tiểu (hố) trên đường biên độ. Điện cảm nối tiếp với điện dung đất Cg tạo cộng hưởng nối tiếp: khuếch đại tín hiệu, thành một điểm cực đại (đỉnh)."
+        source: "IEEE Std C57.149-2012, Phụ lục A, Hình A.3"
+      - text: "Điện trở (tổn hao dây dẫn và tổn hao điện môi, phụ thuộc tần số) làm cộng hưởng và phản cộng hưởng tù đi."
+        source: "IEEE Std C57.149-2012, Phụ lục A"
+      - text: "Tần số cộng hưởng do điện cảm tản L, điện dung đất Cg và điện dung nối tiếp Cs quyết định. Tỉ lệ giữa Cs và Cg quyết định hình dạng, vị trí các cộng hưởng và phản cộng hưởng: Cs càng tăng thì một số cộng hưởng mất đi và phản cộng hưởng xuống tần số thấp hơn."
+        source: "IEEE Std C57.149-2012, Phụ lục A"
+      - text: "Mô hình đầy đủ của cuộn dây là mạng hình thang n đoạn, ma trận điện cảm gồm cả lõi và điện cảm tản, ma trận điện dung gồm điện dung đất và điện dung nối tiếp. Mô hình đã kiểm chứng cho phép mô phỏng hư hỏng mà không phải làm hỏng máy thật."
+        source: "IEEE Std C57.149-2012, 6.6, Hình 18"
+
+  - id: tests
+    title: "Phép đo hở mạch và ngắn mạch"
+    items:
+      - text: "Phép đo hở mạch đo từ đầu này tới đầu kia của một cuộn dây, mọi đầu cực khác để hở. Kết quả chịu ảnh hưởng chủ yếu của tính chất lõi quanh tần số công nghiệp; vùng tần số thấp (lõi) thường có hình dạng đặc trưng."
+        source: "IEEE Std C57.149-2012, 4.6.1, 6.2.1"
+      - text: "Phép đo ngắn mạch đo trên cuộn cao áp khi cuộn hạ áp tương ứng bị nối tắt, để loại ảnh hưởng của lõi. Ở tần số thấp, trở kháng do từ trở lõi mất đi nên biên độ cao hơn và góc pha mang tính điện cảm hơn; vùng thấp là đường giảm bậc nhất của điện cảm chính cuộn dây."
+        source: "IEEE Std C57.149-2012, 4.6.2, 6.2.2"
+      - text: "Vùng tần số giữa do mạng trở kháng của chính chồng cuộn dây chi phối. Trên 500 kHz đáp ứng vẫn chịu ảnh hưởng của cuộn chính nhưng nhạy hơn với các phần hình học nhỏ như cuộn điều chỉnh, dây dẫn nấc và vòng dây bị xô lệch."
+        source: "IEEE Std C57.149-2012, 6.2.1"
+
+  - id: indicators
+    title: "Dấu hiệu thay đổi cần chú ý"
+    items:
+      - text: "Dấu hiệu quan trọng nhất là xuất hiện thêm đỉnh cộng hưởng hoặc mất một đỉnh có sẵn. Tiếp theo là đỉnh cộng hưởng có sẵn bị dịch tần số. Đây thường là biểu hiện của biến dạng cuộn dây."
+        source: "IEEE Std C57.149-2012, 6.2"
+      - text: "Đường đo cao dần lên so với đường gốc khi tần số tăng mà hình dạng vẫn giống có thể là dấu hiệu cuộn dây bị lỏng, nhất là ở tần số cao. Chênh lệch biên độ đáng kể thường đi kèm chênh lệch góc pha đáng kể."
+        source: "IEEE Std C57.149-2012, 6.2"
+      - text: "Ảnh hưởng của cùng một dạng biến dạng khác nhau theo kiểu và thiết kế máy; các dải tần trong các bảng chỉ là gần đúng và có thể chồng lên nhau."
+        source: "IEEE Std C57.149-2012, 6.5"
+
+  - id: ranges
+    title: "Phân dải tần số trong các tài liệu"
+    items:
+      - text: "Các tài liệu dùng nhiều cách chia dải khác nhau: một dải duy nhất, ba dải hoặc nhiều hơn. Ví dụ ba dải 0–100 kHz, 100–600 kHz, 600–1000 kHz; bốn dải 0–2 kHz, 2–20 kHz, 20–400 kHz, 400 kHz–1 MHz."
+        source: "CIGRE TB 812, Bảng 6.1"
+      - text: "Hệ số tương quan Rxy và mức đánh giá trong app tính theo ba dải và Bảng A.1 của DL/T 911-2004; bảng ngưỡng xem ở mục Cấu hình."
+        source: "DL/T 911-2004, Phụ lục A"
+
+  - id: comparison
+    title: "Chuẩn để so sánh và đối chiếu thí nghiệm khác"
+    items:
+      - text: "Khi không có baseline và không có máy cùng kiểu thật sự giống, vẫn có thể phát hiện các hư hỏng rõ ràng bằng cách so giữa các pha của cùng cấp điện áp."
+        source: "IEEE Std C57.149-2012, 6.3.6"
+      - text: "Kết quả FRA dùng để xác nhận kết quả các thí nghiệm khác: dòng không tải một pha (so với vùng thấp của phép đo hở mạch phía cao áp), tỉ số biến (so với phép đo cảm ứng giữa các cuộn), tổng trở ngắn mạch hay điện kháng tản (so với vùng thấp của phép đo ngắn mạch), điện trở một chiều (khi phép đo ngắn mạch nằm ngang dưới 30 Hz)."
+        source: "IEEE Std C57.149-2012, 6.4"
+
+setups:
+  - id: e2e_open
+    label: "Đầu – cuối hở mạch"
+    definition: "Đo trên một cuộn dây (một pha), dây nguồn và dây chuẩn (V_in) nối một đầu, dây đáp ứng (V_out) nối đầu kia; các đầu cực khác để hở."
+    source: "IEC 60076-18:2012, 2.6, 4.4.2.1; IEEE Std C57.149-2012, 4.6.1"
+    note: "Là phép đo tiêu chuẩn, bắt buộc với mọi pha của mọi cuộn dây."
+    vin: H1
+    vout: H0
+    shorted: []
+    grounded: []
+  - id: e2e_short
+    label: "Đầu – cuối ngắn mạch"
+    definition: "Như phép đo đầu – cuối nhưng một cuộn dây khác cùng pha được nối tắt."
+    source: "IEC 60076-18:2012, 2.9; IEEE Std C57.149-2012, 4.6.2"
+    note: "IEEE khuyên nối tắt mọi cuộn hạ áp của máy ba pha để ba pha như nhau; không nối điểm trung tính vào mạch nối tắt."
+    vin: H1
+    vout: H0
+    shorted: [X1, X2]
+    grounded: []
+  - id: cap_inter
+    label: "Điện dung giữa các cuộn dây"
+    definition: "Đo trên hai cuộn dây cùng pha: V_in nối một đầu cuộn này, V_out nối một đầu cuộn kia, các đầu khác để hở."
+    source: "IEC 60076-18:2012, 2.7; IEEE Std C57.149-2012, 4.6.3"
+    note: "Không áp dụng cho các cuộn có phần chung hoặc nối với nhau (ví dụ máy tự ngẫu). Trở kháng cao ở tần số thấp (dưới 100 Hz) và giảm dần khi tần số tăng."
+    vin: H1
+    vout: X1
+    shorted: []
+    grounded: []
+  - id: ind_inter
+    label: "Cảm ứng giữa các cuộn dây"
+    definition: "V_in nối một đầu cuộn điện áp cao hơn, V_out nối một đầu cuộn kia, đầu còn lại của cả hai cuộn được nối đất."
+    source: "IEC 60076-18:2012, 2.8; IEEE Std C57.149-2012, 4.6.4"
+    note: "Gần với thí nghiệm tỉ số biến quanh tần số công nghiệp."
+    vin: H1
+    vout: X1
+    shorted: []
+    grounded: [H0, X2]
+
+checklist:
+  - group: "Tình trạng máy khi đo"
+    items:
+      - text: "Máy lắp đầy đủ như khi vận hành, kể cả sứ; máy dầu phải được nạp dầu (hoặc chất cùng hằng số điện môi)."
+        source: "IEC 60076-18:2012, 4.2"
+      - text: "Cắt máy khỏi hệ thống ở mọi đầu cực; không có kết nối nào ngoài các kết nối của phép đo đang làm. Giữ nối đất vỏ, thiết bị phụ và mạch thứ cấp TI đang dùng."
+        source: "IEC 60076-18:2012, 4.2"
+      - text: "TI đặt trong máy mà không nối vào mạch bảo vệ, đo lường thì nối tắt và nối đất thứ cấp. Lõi và khung phải nối với vỏ, vỏ nối đất."
+        source: "IEC 60076-18:2012, 4.2"
+      - text: "Không nên đo khi nhiệt độ máy đang thay đổi nhanh, ví dụ ngay sau khi xử lý dầu. Ghi nhiệt độ dầu lớp trên."
+        source: "IEC 60076-18:2012, 4.2"
+      - text: "Đo điện trở một chiều, thao tác đóng cắt có thể để lại từ dư trong lõi; từ dư làm cộng hưởng lõi ở vùng thấp dịch sang phải."
+        source: "IEEE Std C57.149-2012, 6.5.9"
+  - group: "Dây đo và nối đất"
+    items:
+      - text: "Dùng dây riêng cho nguồn, chuẩn và đáp ứng: cáp đồng trục 50 Ω, dài bằng nhau, tối đa 30 m với hệ dây thụ động."
+        source: "IEC 60076-18:2012, 5.2"
+      - text: "Kiểm tra liên tục của dây chính và dây đất ngay tại đầu cáp phía thiết bị trước khi đo; với đầu bu lông, mặt bích phải chắc chắn tiếp xúc tốt với cuộn dây hoặc vỏ máy."
+        source: "IEC 60076-18:2012, 4.3.1"
+      - text: "Dây đất của dây nguồn và dây đáp ứng nối riêng xuống vỏ (dây nguồn và dây chuẩn có thể chung một dây), điểm nối gần chân sứ nhất có thể."
+        source: "IEC 60076-18:2012, A.2"
+      - text: "Phương pháp 1 (chuẩn cho baseline): lõi cáp nối thẳng vào đầu cực với đoạn không bọc ngắn nhất; vỏ cáp nối xuống mặt bích chân sứ bằng dây bện ngắn nhất. Thường cho kết quả lặp lại tới 2 MHz."
+        source: "IEC 60076-18:2012, A.3"
+      - text: "Phương pháp 2 dùng dây đất dài cố định: vị trí phần dây thừa có thể ảnh hưởng biên độ trên 500 kHz và tần số cộng hưởng trên 1 MHz, phải tính đến khi so với baseline."
+        source: "IEC 60076-18:2012, A.4"
+  - group: "Kiểm tra phép đo"
+    items:
+      - text: "Kiểm tra không (nếu được yêu cầu): nối mọi dây đo vào một đầu cực cao áp và nối đất như bình thường, đo đáp ứng của riêng mạch đo; cho biết tần số cao nhất còn tin cậy được."
+        source: "IEC 60076-18:2012, 4.3.2"
+      - text: "Kiểm tra lặp lại: đo xong các phép tiêu chuẩn, tháo dây đo và dây đất rồi đo lại phép đầu tiên để đánh giá độ lặp lại và dải tần dùng được."
+        source: "IEC 60076-18:2012, 4.3.3"
+      - text: "Dải đo tối thiểu từ 20 Hz tới 1 MHz (máy trên 72,5 kV) hoặc 2 MHz (máy đến 72,5 kV), khuyến nghị 2 MHz cho mọi máy; trên 100 Hz tối thiểu 200 điểm mỗi decade."
+        source: "IEC 60076-18:2012, 4.5"
+      - text: "Máy có bộ điều áp dưới tải: đo cuộn có nấc ở vị trí nhiều vòng hiệu dụng nhất và ở vị trí cuộn điều chỉnh ra khỏi mạch; ghi vị trí nấc cho mỗi phép đo."
+        source: "IEC 60076-18:2012, 4.4.2.2; IEEE Std C57.149-2012, 4.7"
+
+# Vùng tần số dùng để trả lời bài tập và để đối chiếu số liệu thật: theo cách chia trong các
+# Bảng 7–13 của IEEE C57.149. signature của mỗi dạng hư hỏng: vùng thay đổi (changed) hay không
+# (unchanged) khi đo hở mạch (open) và ngắn mạch (short), chép từ bảng tương ứng; primary là vùng
+# bảng ghi "rõ nhất". features: dấu hiệu riêng (core_shift_up: cộng hưởng lõi dịch sang phải;
+# lf_rise: vùng thấp của phép đo hở mạch tăng như đường ngắn mạch; broad_drop: đáp ứng tụt trên dải
+# rộng), required = thiếu thì trừ điểm. suggest: khuyến nghị gợi ý (id trong recommendations).
+bands:
+  - id: r1
+    label: "20 Hz – 10 kHz (vùng lõi)"
+    f_min: 20
+    f_max: 10000
+  - id: r2
+    label: "5 – 100 kHz"
+    f_min: 5000
+    f_max: 100000
+  - id: r3
+    label: "50 kHz – 1 MHz"
+    f_min: 50000
+    f_max: 1000000
+  - id: r4
+    label: "Trên 1 MHz"
+    f_min: 1000000
+    f_max: 1.0e+12
+bands_source: "IEEE Std C57.149-2012, Bảng 7–13 (dải gần đúng, có thể chồng nhau)"
+
+faults:
+  - id: radial
+    label: "Biến dạng hướng kính (méo vòng)"
+    source: "IEEE Std C57.149-2012, 6.5.1, Bảng 7"
+    summary: "Cuộn dây bị lực điện từ do dòng sự cố lớn ép vào trong và méo dọc theo chiều dài; lực tập trung ở cuộn trong."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: vùng lõi thường không bị ảnh hưởng. Ngắn mạch: trở kháng tăng, đường đo của pha hư hỏng hơi thấp hơn ở đoạn giảm do điện cảm."
+      - range: "5 – 100 kHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới nhưng thay đổi nhỏ, khó nhận ra; chỉ dùng làm bằng chứng phụ."
+      - range: "50 kHz – 1 MHz"
+        text: "Rõ nhất ở dải này: dịch hoặc tạo đỉnh, hố mới tùy mức độ."
+      - range: "Trên 1 MHz"
+        text: "Thường không bị ảnh hưởng; biến dạng nặng có thể lan tới."
+    bands: [r3]
+    simulated: true
+    signature:
+      primary: r3
+      open: { r1: unchanged, r3: changed }
+      short: { r3: changed }
+    suggest: [corroborate]
+  - id: axial
+    label: "Biến dạng dọc trục (giãn, lồng ống)"
+    source: "IEEE Std C57.149-2012, 6.5.2, Bảng 8"
+    summary: "Cuộn dây bị kéo giãn rồi siết lại do bán kính giảm; thay đổi hình học phức tạp làm nhiều cộng hưởng dịch trên dải rộng."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: vùng lõi thường không bị ảnh hưởng. Ngắn mạch: trở kháng thay đổi, có chênh lệch giữa các pha hoặc với lần trước ở đoạn giảm do điện cảm."
+      - range: "5 – 100 kHz"
+        text: "Rõ nhất ở dải này: dịch hoặc tạo đỉnh, hố mới tùy mức độ."
+      - range: "50 kHz – 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới tùy mức độ."
+      - range: "Trên 1 MHz"
+        text: "Đáp ứng không đoán trước được."
+    bands: [r2, r3]
+    simulated: true
+    signature:
+      primary: r2
+      open: { r1: unchanged, r2: changed }
+      short: { r2: changed }
+    suggest: [corroborate]
+  - id: bulk
+    label: "Dịch chuyển tổng thể cuộn dây"
+    source: "IEEE Std C57.149-2012, 6.5.3, Bảng 9"
+    summary: "Cả cuộn dây hoặc một phần cuộn dịch chuyển do va đập, lực dòng lớn, vận chuyển hoặc động đất."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Thường không bị ảnh hưởng; các pha giống nhau."
+      - range: "5 – 100 kHz"
+        text: "Rõ nhất ở dải này; xuất hiện đỉnh hoặc hố mới là dấu hiệu chính."
+      - range: "50 kHz – 1 MHz"
+        text: "Thường không đổi; thay đổi điện dung CL có thể dịch cộng hưởng ở phần trên của dải."
+      - range: "Trên 1 MHz"
+        text: "Thay đổi điện dung CL có thể làm dịch cộng hưởng."
+    bands: [r2]
+    simulated: false
+    signature:
+      primary: r2
+      open: { r1: unchanged, r2: changed, r3: unchanged }
+      short: { r1: unchanged, r2: changed, r3: unchanged }
+    suggest: [corroborate]
+  - id: core
+    label: "Hư hỏng lõi thép"
+    source: "IEEE Std C57.149-2012, 6.5.4, Bảng 10"
+    summary: "Lá thép cháy hoặc chạm nhau, nối đất lõi nhiều điểm hoặc mất nối đất, mối ghép lõi bị xô lệch."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: thường ảnh hưởng vùng dưới 10 kHz, làm đổi hình dạng cộng hưởng lõi chính; chú ý ít vào việc dịch vì có thể bị từ dư che khuất. Đường hở mạch trông như đường ngắn mạch có thể là dấu hiệu hư hỏng lõi. Ngắn mạch: thường không ảnh hưởng."
+      - range: "5 – 100 kHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới."
+      - range: "50 kHz – 1 MHz"
+        text: "Thường không đổi; nếu do nối đất lõi thì có thể dịch cộng hưởng ở phần trên của dải."
+      - range: "Trên 1 MHz"
+        text: "Nếu do nối đất lõi thì có thể dịch cộng hưởng."
+    bands: [r1]
+    simulated: true
+    signature:
+      primary: r1
+      open: { r1: changed, r3: unchanged }
+      short: { r1: unchanged, r3: unchanged }
+      features: [{ id: lf_rise, required: false }]
+    suggest: [corroborate]
+  - id: contact
+    label: "Điện trở tiếp xúc cao"
+    source: "IEEE Std C57.149-2012, 6.5.5, Bảng 11"
+    summary: "Mặt tiếp xúc kim loại nối sứ với cuộn dây, bộ điều áp bị lỏng, ăn mòn, bám bẩn hoặc cháy."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: thường không ảnh hưởng. Ngắn mạch: không khớp với lần trước hoặc giữa các pha, đường của cuộn hư hỏng thường lệch."
+      - range: "5 – 100 kHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+      - range: "50 kHz – 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+      - range: "Trên 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+    bands: [r1, r2, r3, r4]
+    simulated: true
+    signature:
+      primary: r1
+      open: { r1: unchanged }
+      short: { r1: changed }
+    suggest: [remeasure]
+  - id: turn_short
+    label: "Ngắn mạch giữa các vòng dây"
+    source: "IEEE Std C57.149-2012, 6.5.6, Bảng 12"
+    summary: "Chạm giữa hai vòng dây cạnh nhau hoặc giữa các pha, có thể chạm chết hoặc rò qua điện trở lớn; là một trong những dạng dễ nhận ra nhất."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: ảnh hưởng của từ trở lõi mất đi, đường hở mạch giống đường ngắn mạch; cuộn hư hỏng thay đổi nhiều nhất, các cuộn khác cũng đổi nhưng ít hơn. Ngắn mạch: không khớp với lần trước hoặc giữa các pha, cuộn hư hỏng thường lệch."
+      - range: "5 – 100 kHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+      - range: "50 kHz – 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+      - range: "Trên 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+    bands: [r1]
+    simulated: true
+    signature:
+      primary: r1
+      open: { r1: changed }
+      short: { r1: changed }
+      features: [{ id: lf_rise, required: true }]
+    suggest: [corroborate]
+  - id: open_winding
+    label: "Hở mạch cuộn dây"
+    source: "IEEE Std C57.149-2012, 6.5.7, Bảng 13"
+    summary: "Mối nối bung ra hoặc cuộn dây cháy đứt; trở kháng rất lớn chen vào mạch đo, đáp ứng thường tụt trên dải rộng, hở hoàn toàn thì chìm vào nhiễu nền."
+    regions:
+      - range: "20 Hz – 10 kHz"
+        text: "Hở mạch: hình dạng cộng hưởng lõi chính thay đổi. Ngắn mạch: không khớp với lần trước hoặc giữa các pha, cuộn hư hỏng thường lệch."
+      - range: "5 – 100 kHz"
+        text: "Rõ nhất ở dải này; đỉnh hoặc hố mới nổi trội là dấu hiệu chính."
+      - range: "50 kHz – 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+      - range: "Trên 1 MHz"
+        text: "Có thể dịch hoặc tạo đỉnh, hố mới; pha hư hỏng thay đổi nhiều hơn."
+    bands: [r1, r2]
+    simulated: true
+    signature:
+      primary: r2
+      open: { r1: changed, r2: changed }
+      short: { r1: changed, r2: changed }
+      features: [{ id: broad_drop, required: false }]
+    suggest: [remeasure]
+  - id: looseness
+    label: "Cuộn dây lỏng do vận chuyển"
+    source: "IEEE Std C57.149-2012, 6.5.8, Bảng 14"
+    summary: "Khoảng cách giữa các đĩa hoặc vòng dây giãn dần theo chiều trục khi nêm chèn bị lỏng; FRA phát hiện cuộn dây lỏng chứ không phát hiện nêm lỏng."
+    regions:
+      - range: "20 Hz – 500 kHz"
+        text: "Hở mạch: thường không bị ảnh hưởng."
+      - range: "500 kHz – 2 MHz"
+        text: "Hở mạch: chênh lệch tăng dần theo tần số, có thể nhận ra; cuộn bị ảnh hưởng nhiều thì chênh nhiều hơn."
+      - range: "1 – 5 MHz"
+        text: "Hở mạch: chênh lệch lớn nhất và tăng dần theo tần số."
+    bands: [r3, r4]
+    simulated: false
+    signature:
+      primary: r4
+      open: { r1: unchanged, r2: unchanged, r4: changed }
+    suggest: [corroborate]
+  - id: residual
+    label: "Từ dư trong lõi (không phải hư hỏng)"
+    source: "IEEE Std C57.149-2012, 6.5.9"
+    summary: "Mật độ từ thông còn lại trong lõi sau đo điện trở một chiều, đóng cắt hoặc hiện tượng địa từ. Nhận ra khi cộng hưởng lõi ở tần số thấp dịch sang phải so với khi đã khử từ; khử từ để loại bỏ nếu nghi ngờ tình trạng lõi."
+    regions:
+      - range: "Vùng tần số thấp"
+        text: "Cộng hưởng lõi dịch sang phải (tần số cao hơn)."
+    bands: [r1]
+    simulated: true
+    signature:
+      primary: r1
+      open: { r1: changed, r2: unchanged, r3: unchanged, r4: unchanged }
+      short: { r1: unchanged, r2: unchanged, r3: unchanged, r4: unchanged }
+      features: [{ id: core_shift_up, required: true }]
+    suggest: [demagnetize]
+  - id: earth_lead
+    label: "Ảnh hưởng nối đất dây đo (không phải hư hỏng máy)"
+    source: "IEC 60076-18:2012, A.4, 4.5 ghi chú"
+    summary: "Dây đất dài hơn dây bện ngắn nhất, hoặc vị trí phần dây thừa thay đổi giữa các lần đo."
+    regions:
+      - range: "Trên 500 kHz"
+        text: "Có thể ảnh hưởng biên độ (dB)."
+      - range: "Trên 1 MHz"
+        text: "Có thể ảnh hưởng tần số cộng hưởng; độ lặp lại trên 1 MHz tốt hơn khi dây đất ngắn."
+    bands: [r4]
+    simulated: true
+    signature:
+      primary: r4
+      open: { r1: unchanged, r2: unchanged, r4: changed }
+      short: { r1: unchanged, r2: unchanged, r4: changed }
+    suggest: [remeasure]
+  - id: none
+    label: "Không có thay đổi đáng kể"
+    source: "Lựa chọn của bài tập"
+    summary: "Đường đo trùng với chuẩn so sánh trong phạm vi lặp lại của phép đo."
+    regions: []
+    bands: []
+    simulated: false
+    signature:
+      primary: none
+      open: { r1: unchanged, r2: unchanged, r3: unchanged, r4: unchanged }
+      short: { r1: unchanged, r2: unchanged, r3: unchanged, r4: unchanged }
+    suggest: [continue]
+
+recommendations:
+  - id: continue
+    label: "Tiếp tục vận hành, lưu kết quả và theo dõi định kỳ"
+    source: "Hành động gợi ý nội bộ của app cho mức Bình thường (cấu hình được)"
+  - id: remeasure
+    label: "Kiểm tra lại đấu nối, nối đất, vị trí nấc rồi đo lặp lại"
+    source: "IEC 60076-18:2012, 4.3.1, 4.3.3; IEEE Std C57.149-2012, 4.7"
+  - id: demagnetize
+    label: "Khử từ dư lõi thép rồi đo lại"
+    source: "IEEE Std C57.149-2012, 6.5.9"
+  - id: corroborate
+    label: "Làm thêm thí nghiệm đối chiếu: dòng không tải một pha, tỉ số biến, tổng trở ngắn mạch, điện trở một chiều"
+    source: "IEEE Std C57.149-2012, 6.4"
+  - id: inspect
+    label: "Đưa máy ra khỏi vận hành để kiểm tra bên trong"
+    source: "Lựa chọn nội bộ; quyết định theo quy trình của đơn vị"
+
+scoring:
+  weights:
+    fault: 40
+    bands: 20
+    measure: 20
+    recommendation: 20
+  measure_tolerance_pct: 5
+  source: "Thang điểm nội bộ của phần huấn luyện (cấu hình được trong gói bài tập)"

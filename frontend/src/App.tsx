@@ -16,6 +16,7 @@ import OverviewView from "./views/OverviewView";
 import ResultsView from "./views/ResultsView";
 import ReportView from "./views/ReportView";
 import StandardsView from "./views/StandardsView";
+import TrainingView from "./views/TrainingView";
 import TrendView from "./views/TrendView";
 import CompareView from "./views/CompareView";
 import { defaultInfo, type ReportInfo } from "./report/info";
@@ -27,7 +28,7 @@ import Nameplate from "./components/Nameplate";
 import { BrandMark, ICONS, RailIcon } from "./components/Icons";
 import { LevelBadge } from "./components/common";
 
-type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "standards";
+type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" | "report" | "training" | "standards";
 
 const RAIL_KEY = "sfra.rail";
 
@@ -39,6 +40,7 @@ const NAV: { id: View; label: string }[] = [
   { id: "trend", label: "Xu hướng" },
   { id: "compare", label: "So sánh tham khảo" },
   { id: "report", label: "Báo cáo" },
+  { id: "training", label: "Huấn luyện" },
   { id: "standards", label: "Cấu hình" },
 ];
 
@@ -727,6 +729,7 @@ export default function App() {
               colors={ws.traceColors}
             />
           )}
+          {view === "training" && <TrainingView std={std} mode={mode} profiles={ws.profiles} />}
           {view === "standards" && (
             <StandardsView
               std={std}
