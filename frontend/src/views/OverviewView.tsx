@@ -45,7 +45,7 @@ export default function OverviewView(p: Props) {
     <div className="view">
       <header className="view-head split">
         <div>
-          <h1>Tổng quan</h1>
+          <h1>Thiết bị</h1>
           {p.groups.length > 0 && <p className="lede">Các máy biến áp đã nạp, kỳ đo gần nhất và đánh giá theo kỳ đang chọn.</p>}
         </div>
         {p.groups.length > 0 && (

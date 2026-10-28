@@ -33,19 +33,37 @@ type View = "overview" | "import" | "results" | "detail" | "trend" | "compare" |
 
 const RAIL_KEY = "sfra.rail";
 
-const NAV: { id: View; label: string }[] = [
-  { id: "overview", label: "Tổng quan" },
-  { id: "training", label: "Huấn luyện" },
-  { id: "import", label: "Nhập dữ liệu" },
-  { id: "results", label: "Kết quả kỳ đo" },
-  { id: "detail", label: "Chi tiết phép đo" },
-  { id: "trend", label: "Xu hướng" },
-  { id: "compare", label: "So sánh tham khảo" },
-  { id: "report", label: "Báo cáo" },
-  { id: "standards", label: "Cấu hình" },
+interface NavItem {
+  id: View;
+  label: string;
+}
+
+/** Sidebar: learning apart from the work on real measurements, each part under its own heading */
+const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
+  { id: "learn", label: "Huấn luyện", items: [{ id: "training", label: "Huấn luyện SFRA" }] },
+  {
+    id: "test",
+    label: "Thí nghiệm",
+    items: [
+      { id: "overview", label: "Thiết bị" },
+      { id: "import", label: "Nhập dữ liệu" },
+      { id: "results", label: "Kết quả kỳ đo" },
+      { id: "detail", label: "Chi tiết phép đo" },
+      { id: "trend", label: "Xu hướng" },
+      { id: "compare", label: "So sánh tham khảo" },
+      { id: "report", label: "Báo cáo" },
+    ],
+  },
+];
+
+/** Icon buttons at the right of the header, in this order */
+const TOOLS: NavItem[] = [
   { id: "help", label: "Hướng dẫn sử dụng" },
   { id: "about", label: "Giới thiệu" },
+  { id: "standards", label: "Cấu hình" },
 ];
+
+const NAV: NavItem[] = [...NAV_GROUPS.flatMap((g) => g.items), ...TOOLS];
 
 /** Exercise a ruleset on fixed values so an edited YAML that cannot run is rejected before use. */
 function probeStandards(s: Standards) {
@@ -515,17 +533,24 @@ export default function App() {
           </div>
         </div>
         <nav className="nav-list" aria-label="Chức năng">
-          {NAV.map((n) => (
-            <button
-              key={n.id}
-              className={view === n.id ? "nav-item on" : "nav-item"}
-              aria-current={view === n.id ? "page" : undefined}
-              disabled={disabled(n.id)}
-              onClick={() => setView(n.id)}
-            >
-              {ICONS[n.id]}
-              <span>{n.label}</span>
-            </button>
+          {NAV_GROUPS.map((g) => (
+            <div key={g.id} className="nav-group" role="group" aria-labelledby={`nav-h-${g.id}`}>
+              <div className="nav-head" id={`nav-h-${g.id}`}>
+                {g.label}
+              </div>
+              {g.items.map((n) => (
+                <button
+                  key={n.id}
+                  className={view === n.id ? "nav-item on" : "nav-item"}
+                  aria-current={view === n.id ? "page" : undefined}
+                  disabled={disabled(n.id)}
+                  onClick={() => setView(n.id)}
+                >
+                  {ICONS[n.id]}
+                  <span>{n.label}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         {live.length > 0 && (
@@ -582,6 +607,21 @@ export default function App() {
                 {worst[group.key] && <LevelBadge c={worst[group.key]} />}
               </span>
             )}
+            <nav className="topbar-tools" aria-label="Trợ giúp và cấu hình">
+              {TOOLS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={view === t.id ? "tool-btn on" : "tool-btn"}
+                  aria-label={t.label}
+                  aria-current={view === t.id ? "page" : undefined}
+                  data-tip={t.label}
+                  onClick={() => setView(t.id)}
+                >
+                  {ICONS[t.id]}
+                </button>
+              ))}
+            </nav>
           </div>
         </header>
         <main className="main">

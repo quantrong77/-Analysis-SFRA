@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, { error: Error | nul
                 this.props.onHome();
               }}
             >
-              Về Tổng quan
+              Về Thiết bị
             </button>
           </div>
         </section>

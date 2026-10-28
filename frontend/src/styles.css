@@ -1705,6 +1705,8 @@ td.v-review {
   }
   .shell {
     grid-template-columns: minmax(0, 1fr);
+    /* the menu keeps its own height on a short page; the content takes the rest */
+    grid-template-rows: auto 1fr;
   }
   .rail {
     z-index: 5;
@@ -2577,5 +2579,120 @@ ol.refs + p {
   }
   .tf-diagram .dg-label.small {
     font-size: 18px;
+  }
+}
+
+/* sidebar parts and the header icon buttons */
+.nav-list {
+  gap: 14px;
+}
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-group + .nav-group {
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.nav-head {
+  padding: 0 10px 4px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.topbar-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.topbar-context + .topbar-tools {
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--rule);
+}
+.tool-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--ink-2);
+}
+.tool-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.tool-btn:hover:not(:disabled) {
+  background: var(--plate);
+  color: var(--ink);
+}
+.tool-btn.on {
+  background: var(--winding-tint);
+  color: var(--winding);
+}
+/* name of the button, under it, aligned to its right edge so it never leaves the screen */
+.tool-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  padding: 5px 9px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.tool-btn:hover::after,
+.tool-btn:focus-visible::after {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tool-btn::after {
+    transition: none;
+  }
+}
+@media (max-width: 860px) {
+  .nav-list {
+    gap: 2px;
+  }
+  .nav-group {
+    flex-direction: row;
+    flex: none;
+    gap: 2px;
+  }
+  .nav-group + .nav-group {
+    padding-top: 0;
+    padding-left: 6px;
+    margin-left: 4px;
+    border-top: none;
+    border-left: 1px solid var(--rule);
+  }
+  .nav-head {
+    display: none;
+  }
+  .topbar-tools {
+    order: 1;
+  }
+  .topbar-context {
+    order: 2;
+  }
+  .topbar-context + .topbar-tools {
+    margin-left: auto;
+    padding-left: 0;
+    border-left: none;
   }
 }
